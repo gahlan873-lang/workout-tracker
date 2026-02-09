@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тренировочный дневник</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .workout-form {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            min-height: 44px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .exercise-item {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .exercise-info {
+            flex: 1;
+        }
+
+        .exercise-name {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .exercise-details {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        .workout-date {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 20px;
+        }
+
+        .no-exercises {
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .stats {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 12px;
+            }
+
+            .container {
+                padding: 16px;
+            }
+
+            h1 {
+                font-size: 22px;
+                margin-bottom: 20px;
+            }
+
+            .workout-form {
+                padding: 16px;
+            }
+
+            input, select {
+                font-size: 16px;
+            }
+
+            button {
+                width: 100%;
+                margin-right: 0;
+            }
+
+            .exercise-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .delete-btn {
+                width: 100%;
+            }
+
+            .workout-date {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏋️ Тренировочный дневник</h1>
+        
+        <div class="stats" id="stats">
+            Всего тренировок: <span id="totalWorkouts">0</span> | 
+            Всего упражнений: <span id="totalExercises">0</span>
+        </div>
+
+        <div class="workout-form">
+            <h2>Добавить упражнение</h2>
+            <form id="exerciseForm">
+                <div class="form-group">
+                    <label for="exerciseName">Название упражнения:</label>
+                    <input type="text" id="exerciseName" required placeholder="Например: Жим лежа">
+                </div>
+                
+                <div class="form-group">
+                    <label for="sets">Подходы:</label>
+                    <input type="number" id="sets" required min="1" placeholder="4">
+                </div>
+                
+                <div class="form-group">
+                    <label for="reps">Повторения:</label>
+                    <input type="number" id="reps" required min="1" placeholder="10">
+                </div>
+                
+                <div class="form-group">
+                    <label for="weight">Вес (кг):</label>
+                    <input type="number" id="weight" required min="0" step="0.5" placeholder="60">
+                </div>
+                
+                <div class="actions">
+                    <button type="submit">Добавить упражнение</button>
+                    <button type="button" id="clearWorkout">Очистить тренировку</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="workout-date" id="workoutDate"></div>
+        
+        <div id="exercisesList">
+            <div class="no-exercises">Нет упражнений. Добавьте первое упражнение!</div>
+        </div>
+    </div>
+
+    <script>
+        class WorkoutTracker {
+            constructor() {
+                this.currentWorkout = this.loadCurrentWorkout();
+                this.allWorkouts = this.loadAllWorkouts();
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.updateWorkoutDate();
+                this.renderExercises();
+                this.updateStats();
+            }
+
+            setupEventListeners() {
+                document.getElementById('exerciseForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.addExercise();
+                });
+
+                document.getElementById('clearWorkout').addEventListener('click', () => {
+                    if (confirm('Вы уверены, что хотите очистить текущую тренировку?')) {
+                        this.clearWorkout();
+                    }
+                });
+            }
+
+            updateWorkoutDate() {
+                const now = new Date();
+                const options = { 
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric',
+                    weekday: 'long'
+                };
+                document.getElementById('workoutDate').textContent = 
+                    now.toLocaleDateString('ru-RU', options);
+            }
+
+            addExercise() {
+                const name = document.getElementById('exerciseName').value;
+                const sets = parseInt(document.getElementById('sets').value);
+                const reps = parseInt(document.getElementById('reps').value);
+                const weight = parseFloat(document.getElementById('weight').value);
+
+                const exercise = {
+                    id: Date.now(),
+                    name,
+                    sets,
+                    reps,
+                    weight,
+                    timestamp: new Date().toISOString()
+                };
+
+                this.currentWorkout.exercises.push(exercise);
+                this.saveCurrentWorkout();
+                this.renderExercises();
+                this.updateStats();
+
+                // Очистка формы
+                document.getElementById('exerciseForm').reset();
+                document.getElementById('exerciseName').focus();
+            }
+
+            deleteExercise(id) {
+                this.currentWorkout.exercises = this.currentWorkout.exercises.filter(
+                    exercise => exercise.id !== id
+                );
+                this.saveCurrentWorkout();
+                this.renderExercises();
+                this.updateStats();
+            }
+
+            clearWorkout() {
+                if (this.currentWorkout.exercises.length > 0) {
+                    // Сохраняем текущую тренировку в историю
+                    this.allWorkouts.push({
+                        ...this.currentWorkout,
+                        completedAt: new Date().toISOString()
+                    });
+                    this.saveAllWorkouts();
+                }
+
+                this.currentWorkout = {
+                    date: new Date().toDateString(),
+                    exercises: []
+                };
+                this.saveCurrentWorkout();
+                this.renderExercises();
+                this.updateStats();
+            }
+
+            renderExercises() {
+                const container = document.getElementById('exercisesList');
+                
+                if (this.currentWorkout.exercises.length === 0) {
+                    container.innerHTML = '<div class="no-exercises">Нет упражнений. Добавьте первое упражнение!</div>';
+                    return;
+                }
+
+                container.innerHTML = this.currentWorkout.exercises.map(exercise => `
+                    <div class="exercise-item">
+                        <div class="exercise-info">
+                            <div class="exercise-name">${exercise.name}</div>
+                            <div class="exercise-details">
+                                ${exercise.sets} подходов × ${exercise.reps} повторений × ${exercise.weight} кг
+                            </div>
+                        </div>
+                        <button class="delete-btn" onclick="workoutTracker.deleteExercise(${exercise.id})">
+                            Удалить
+                        </button>
+                    </div>
+                `).join('');
+            }
+
+            updateStats() {
+                const totalWorkouts = this.allWorkouts.length + 
+                    (this.currentWorkout.exercises.length > 0 ? 1 : 0);
+                const totalExercises = this.allWorkouts.reduce((sum, workout) => 
+                    sum + workout.exercises.length, 0) + this.currentWorkout.exercises.length;
+
+                document.getElementById('totalWorkouts').textContent = totalWorkouts;
+                document.getElementById('totalExercises').textContent = totalExercises;
+            }
+
+            saveCurrentWorkout() {
+                localStorage.setItem('currentWorkout', JSON.stringify(this.currentWorkout));
+            }
+
+            loadCurrentWorkout() {
+                const saved = localStorage.getItem('currentWorkout');
+                const today = new Date().toDateString();
+                
+                if (saved) {
+                    const workout = JSON.parse(saved);
+                    // Если тренировка от другого дня, начинаем новую
+                    if (workout.date !== today) {
+                        if (workout.exercises.length > 0) {
+                            this.allWorkouts.push({
+                                ...workout,
+                                completedAt: new Date().toISOString()
+                            });
+                            this.saveAllWorkouts();
+                        }
+                        return { date: today, exercises: [] };
+                    }
+                    return workout;
+                }
+                
+                return { date: today, exercises: [] };
+            }
+
+            saveAllWorkouts() {
+                localStorage.setItem('allWorkouts', JSON.stringify(this.allWorkouts));
+            }
+
+            loadAllWorkouts() {
+                const saved = localStorage.getItem('allWorkouts');
+                return saved ? JSON.parse(saved) : [];
+            }
+        }
+
+        // Инициализация приложения
+        const workoutTracker = new WorkoutTracker();
+    </script>
+</body>
+</html>
