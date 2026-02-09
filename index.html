@@ -56,6 +56,32 @@
             gap: 10px;
         }
 
+        .auth-panel {
+            background: rgba(248, 250, 252, 0.1);
+            border-radius: 14px;
+            padding: 10px 12px;
+            display: grid;
+            gap: 8px;
+            color: #e2e8f0;
+            margin-bottom: 16px;
+        }
+
+        .auth-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .auth-row .input {
+            background: #ffffff;
+        }
+
+        .auth-status {
+            font-size: 12px;
+            color: #cbd5f5;
+        }
+
         .export-btn {
             border: 0;
             background: rgba(248, 250, 252, 0.1);
@@ -606,6 +632,11 @@
             .catalog-actions {
                 width: 100%;
             }
+
+            .auth-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
         }
     </style>
 </head>
@@ -620,6 +651,15 @@
                 <button class="export-btn" type="button" data-action="export-data" aria-label="Выгрузить данные" title="Выгрузить данные">⤓</button>
             </div>
         </header>
+
+        <div class="auth-panel" id="authPanel">
+            <div class="auth-row">
+                <input class="input" type="email" id="authEmail" placeholder="Email для входа">
+                <button class="btn" type="button" data-action="auth-login">Войти по ссылке</button>
+                <button class="ghost-btn" type="button" data-action="auth-logout">Выйти</button>
+            </div>
+            <div class="auth-status" id="authStatus">Синхронизация отключена</div>
+        </div>
 
         <div class="tabs" id="tabs">
             <button class="tab-btn active" data-tab="calendar">Календарь</button>
@@ -697,9 +737,12 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const GROUPS = ["Грудь", "Спина", "Руки", "Ноги", "Плечи", "Пресс"];
         const STORAGE_KEY = "workoutDataV3";
+        const SUPABASE_URL = "https://dwgdefrmmykfzsvtcsjh.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_TAsCglmNK5MKehKbkS8gwg_b2uZK8ug";
 
         const state = {
             data: loadData(),
@@ -715,7 +758,11 @@
             period: "all",
             customFrom: "",
             customTo: "",
-            editingSet: null
+            editingSet: null,
+            user: null,
+            supabase: null,
+            syncing: false,
+            remoteCache: { workouts: {}, catalogs: {} }
         };
 
         const WEIGHT_OPTIONS = buildWeightOptions();
@@ -759,7 +806,11 @@
         const fromDate = document.getElementById("fromDate");
         const toDate = document.getElementById("toDate");
         const chartEmpty = document.getElementById("chartEmpty");
+        const authPanel = document.getElementById("authPanel");
+        const authEmail = document.getElementById("authEmail");
+        const authStatus = document.getElementById("authStatus");
 
+        initSupabase();
         renderAll();
         setupEventListeners();
 
@@ -798,6 +849,8 @@
                 if (action === "rename-selected") renameSelectedExercise(button.dataset.group);
                 if (action === "delete-selected") deleteSelectedExercise(button.dataset.group);
                 if (action === "finish-workout") finishWorkout();
+                if (action === "auth-login") sendMagicLink();
+                if (action === "auth-logout") signOut();
             });
 
             calendarGrid.addEventListener("click", (event) => {
@@ -1155,6 +1208,7 @@
             if (!catalog.includes(name)) {
                 catalog.push(name);
                 catalog.sort((a, b) => a.localeCompare(b, "ru"));
+                state.data.catalogUpdatedAt[group] = new Date().toISOString();
                 saveData();
                 renderWorkout();
             }
@@ -1177,6 +1231,7 @@
             if (state.selectedCatalogExercise[group] === name) {
                 state.selectedCatalogExercise[group] = state.data.catalogByGroup[group][0] || "";
             }
+            state.data.catalogUpdatedAt[group] = new Date().toISOString();
             saveData();
             renderWorkout();
         }
@@ -1199,6 +1254,7 @@
             if (state.selectedCatalogExercise[group] === oldName) {
                 state.selectedCatalogExercise[group] = newName;
             }
+            state.data.catalogUpdatedAt[group] = new Date().toISOString();
 
             Object.values(state.data.workoutsByDate).forEach(workout => {
                 workout.entries.forEach(entry => {
@@ -1420,6 +1476,197 @@
             link.click();
             link.remove();
             URL.revokeObjectURL(url);
+        }
+
+        function initSupabase() {
+            if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+            state.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            state.supabase.auth.getSession().then(({ data }) => {
+                state.user = data.session?.user || null;
+                updateAuthStatus();
+                if (state.user) {
+                    syncFromSupabase();
+                }
+            });
+            state.supabase.auth.onAuthStateChange((_event, session) => {
+                state.user = session?.user || null;
+                updateAuthStatus();
+                if (state.user) {
+                    syncFromSupabase();
+                }
+            });
+        }
+
+        function updateAuthStatus(message) {
+            if (!authStatus) return;
+            if (!state.user) {
+                authStatus.textContent = message || "Синхронизация отключена";
+                return;
+            }
+            authStatus.textContent = message || `Синхронизация включена: ${state.user.email}`;
+        }
+
+        async function sendMagicLink() {
+            if (!state.supabase) return;
+            const email = authEmail.value.trim();
+            if (!email) return;
+            updateAuthStatus("Отправляю ссылку...");
+            const { error } = await state.supabase.auth.signInWithOtp({
+                email,
+                options: { emailRedirectTo: window.location.href }
+            });
+            if (error) {
+                updateAuthStatus("Ошибка входа");
+                return;
+            }
+            updateAuthStatus("Ссылка отправлена. Проверьте почту.");
+        }
+
+        async function signOut() {
+            if (!state.supabase) return;
+            await state.supabase.auth.signOut();
+            state.user = null;
+            updateAuthStatus("Синхронизация отключена");
+        }
+
+        let syncTimer = null;
+        function scheduleSync() {
+            if (!state.user || !state.supabase) return;
+            if (syncTimer) clearTimeout(syncTimer);
+            syncTimer = setTimeout(() => {
+                syncToSupabase();
+            }, 1200);
+        }
+
+        async function syncFromSupabase() {
+            if (!state.user || state.syncing) return;
+            state.syncing = true;
+            updateAuthStatus("Синхронизация...");
+
+            const { data: workoutRows, error: workoutError } = await state.supabase
+                .from("workouts")
+                .select("date_key, data, updated_at")
+                .eq("user_id", state.user.id);
+
+            const { data: catalogRows, error: catalogError } = await state.supabase
+                .from("catalogs")
+                .select("group, items, updated_at")
+                .eq("user_id", state.user.id);
+
+            if (workoutError || catalogError) {
+                state.syncing = false;
+                updateAuthStatus("Ошибка синхронизации");
+                return;
+            }
+
+            const remoteWorkouts = {};
+            workoutRows.forEach(row => {
+                remoteWorkouts[row.date_key] = row.data;
+                state.remoteCache.workouts[row.date_key] = row.updated_at || row.data?.updatedAt || null;
+            });
+
+            const remoteCatalogs = {};
+            catalogRows.forEach(row => {
+                remoteCatalogs[row.group] = row.items || [];
+                state.remoteCache.catalogs[row.group] = row.updated_at || null;
+            });
+
+            const merged = mergeWorkouts(state.data.workoutsByDate, remoteWorkouts);
+            state.data.workoutsByDate = merged;
+
+            GROUPS.forEach(group => {
+                const localUpdated = state.data.catalogUpdatedAt[group];
+                const remoteUpdated = state.remoteCache.catalogs[group];
+                if (!remoteUpdated && localUpdated) {
+                    return;
+                }
+                if (remoteUpdated && (!localUpdated || new Date(remoteUpdated) > new Date(localUpdated))) {
+                    state.data.catalogByGroup[group] = remoteCatalogs[group] || [];
+                    state.data.catalogUpdatedAt[group] = remoteUpdated;
+                }
+            });
+
+            saveData(true);
+            renderAll();
+            state.syncing = false;
+            updateAuthStatus();
+        }
+
+        async function syncToSupabase() {
+            if (!state.user || state.syncing) return;
+            state.syncing = true;
+            updateAuthStatus("Синхронизация...");
+
+            const workoutRows = [];
+            Object.entries(state.data.workoutsByDate).forEach(([dateKey, workout]) => {
+                const remoteUpdated = state.remoteCache.workouts[dateKey];
+                if (!remoteUpdated || new Date(workout.updatedAt || 0) > new Date(remoteUpdated)) {
+                    workoutRows.push({
+                        user_id: state.user.id,
+                        date_key: dateKey,
+                        data: workout
+                    });
+                }
+            });
+
+            if (workoutRows.length) {
+                const { error } = await state.supabase
+                    .from("workouts")
+                    .upsert(workoutRows.map(row => ({
+                        ...row,
+                        updated_at: row.data.updatedAt || new Date().toISOString()
+                    })), { onConflict: "user_id,date_key" });
+                if (!error) {
+                    workoutRows.forEach(row => {
+                        state.remoteCache.workouts[row.date_key] = row.data.updatedAt || new Date().toISOString();
+                    });
+                }
+            }
+
+            const catalogRows = [];
+            GROUPS.forEach(group => {
+                const localUpdated = state.data.catalogUpdatedAt[group];
+                const remoteUpdated = state.remoteCache.catalogs[group];
+                if (localUpdated && (!remoteUpdated || new Date(localUpdated) > new Date(remoteUpdated))) {
+                    catalogRows.push({
+                        user_id: state.user.id,
+                        group,
+                        items: state.data.catalogByGroup[group]
+                    });
+                }
+            });
+
+            if (catalogRows.length) {
+                const { error } = await state.supabase
+                    .from("catalogs")
+                    .upsert(catalogRows.map(row => ({
+                        ...row,
+                        updated_at: state.data.catalogUpdatedAt[row.group] || new Date().toISOString()
+                    })), { onConflict: "user_id,group" });
+                if (!error) {
+                    catalogRows.forEach(row => {
+                        state.remoteCache.catalogs[row.group] = state.data.catalogUpdatedAt[row.group] || new Date().toISOString();
+                    });
+                }
+            }
+
+            state.syncing = false;
+            updateAuthStatus();
+        }
+
+        function mergeWorkouts(localWorkouts, remoteWorkouts) {
+            const merged = { ...localWorkouts };
+            Object.entries(remoteWorkouts).forEach(([dateKey, remoteWorkout]) => {
+                const localWorkout = localWorkouts[dateKey];
+                if (!localWorkout) {
+                    merged[dateKey] = remoteWorkout;
+                    return;
+                }
+                const localTime = new Date(localWorkout.updatedAt || 0).getTime();
+                const remoteTime = new Date(remoteWorkout.updatedAt || 0).getTime();
+                merged[dateKey] = remoteTime > localTime ? remoteWorkout : localWorkout;
+            });
+            return merged;
         }
 
         function buildWeightOptions() {
@@ -1669,8 +1916,10 @@
                 data = migrateFromPreviousStorage();
             }
             data.catalogByGroup = data.catalogByGroup || {};
+            data.catalogUpdatedAt = data.catalogUpdatedAt || {};
             GROUPS.forEach(group => {
                 if (!data.catalogByGroup[group]) data.catalogByGroup[group] = [];
+                if (!data.catalogUpdatedAt[group]) data.catalogUpdatedAt[group] = null;
             });
             Object.values(data.workoutsByDate || {}).forEach(workout => {
                 if (workout.moodBefore === undefined) workout.moodBefore = 0;
@@ -1678,16 +1927,21 @@
                 if (workout.durationStart === undefined) workout.durationStart = null;
                 if (workout.durationSeconds === undefined) workout.durationSeconds = 0;
                 if (workout.finishedAt === undefined) workout.finishedAt = null;
+                if (workout.updatedAt === undefined) workout.updatedAt = workout.createdAt || new Date().toISOString();
             });
             return data;
         }
 
-        function saveData() {
+        function saveData(skipSync) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+            if (!skipSync) {
+                scheduleSync();
+            }
         }
 
         function migrateFromPreviousStorage() {
             const migrated = { workoutsByDate: {}, catalogByGroup: {} };
+            migrated.catalogUpdatedAt = {};
             GROUPS.forEach(group => { migrated.catalogByGroup[group] = []; });
 
             const legacyV2 = localStorage.getItem("workoutDataV2");
@@ -1728,6 +1982,7 @@
                     });
                     GROUPS.forEach(group => {
                         migrated.catalogByGroup[group].sort((a, b) => a.localeCompare(b, "ru"));
+                        migrated.catalogUpdatedAt[group] = new Date().toISOString();
                     });
                     return migrated;
                 } catch (error) {
@@ -1777,6 +2032,10 @@
                     }
                     migrated.workoutsByDate[dateKey].entries.push(entry);
                 });
+            });
+
+            GROUPS.forEach(group => {
+                migrated.catalogUpdatedAt[group] = null;
             });
 
             return migrated;
