@@ -58,12 +58,12 @@
         }
 
         .logo {
-            width: 48px;
-            height: 48px;
+            width: 58px;
+            height: 58px;
             border-radius: 50%;
-            border: 2px solid #ffffff;
+            border: none;
             object-fit: cover;
-            background: #ffffff;
+            background: transparent;
         }
 
         .header-actions {
@@ -301,6 +301,12 @@
             font-weight: 700;
         }
 
+        .tonnage-analogy {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #475569;
+        }
+
         .catalog-panel {
             background: #ffffff;
             border-radius: 18px;
@@ -515,56 +521,7 @@
             border-bottom: none;
         }
 
-        .set-form {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr) auto auto;
-            gap: 8px;
-            margin-top: 12px;
-        }
 
-        .manual-row {
-            grid-column: 1 / -1;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-
-        .manual-row.hidden {
-            display: none;
-        }
-
-        .timer-card {
-            background: #0f172a;
-            color: #e2e8f0;
-            border-radius: 16px;
-            padding: 16px;
-            display: grid;
-            gap: 10px;
-        }
-
-        .timer-display {
-            font-size: 32px;
-            font-weight: 700;
-            letter-spacing: 2px;
-        }
-
-        .timer-bar {
-            height: 8px;
-            background: rgba(226, 232, 240, 0.2);
-            border-radius: 999px;
-            overflow: hidden;
-        }
-
-        .timer-bar-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #f97316, #0ea5e9);
-            transition: width 0.2s ease;
-        }
-
-        .timer-bar-fill.expired {
-            background: linear-gradient(90deg, #ef4444, #f97316);
-        }
 
         .mood-block {
             display: grid;
@@ -604,11 +561,6 @@
             transform: scale(1.05);
         }
 
-        .timer-controls {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
 
         .chart-card {
             background: #ffffff;
@@ -650,22 +602,7 @@
                 width: 100%;
             }
 
-            .set-form {
-                grid-template-columns: 1fr 1fr;
-            }
 
-            .set-form .btn,
-            .set-form .ghost-btn {
-                grid-column: span 2;
-            }
-
-            .manual-row {
-                grid-template-columns: 1fr;
-            }
-
-            .timer-controls {
-                flex-direction: column;
-            }
 
             .catalog-actions {
                 width: 100%;
@@ -677,8 +614,8 @@
             }
 
             .logo {
-                width: 40px;
-                height: 40px;
+                width: 48px;
+                height: 48px;
             }
         }
     </style>
@@ -689,8 +626,8 @@
             <div class="header-brand">
                 <img class="logo" src="logo.png" alt="Логотип">
                 <div>
-                    <div class="header-title">Тренировочный дневник</div>
-                    <div class="header-subtitle">Календарь, подходы, таймер отдыха и графики</div>
+                    <div class="header-title" id="headerTitle">Тренировочный дневник</div>
+                    <div class="header-subtitle">сила есть - ума не надо</div>
                 </div>
             </div>
             <div class="header-actions">
@@ -742,6 +679,7 @@
                     <div id="workoutStatus"></div>
                     <button class="ghost-btn" type="button" data-action="finish-workout">Завершить тренировку</button>
                 </div>
+                <div class="tonnage-analogy" id="tonnageAnalogy"></div>
 
                 <div class="mood-block" id="moodBlock"></div>
 
@@ -753,19 +691,6 @@
                 <div id="entriesList"></div>
             </div>
 
-            <div class="panel">
-                <div class="timer-card">
-                    <div>Таймер отдыха</div>
-                    <div class="timer-display" id="timerDisplay">00:00</div>
-                    <div class="timer-bar"><div class="timer-bar-fill" id="timerBar"></div></div>
-                    <div id="timerStatus">Готов к старту</div>
-                    <div class="timer-controls">
-                        <button class="btn" data-action="timer-start">Старт</button>
-                        <button class="btn secondary" data-action="timer-pause">Пауза</button>
-                        <button class="ghost-btn" data-action="timer-reset">Сброс</button>
-                    </div>
-                </div>
-            </div>
         </section>
 
         <section class="tab-panel" id="tab-charts">
@@ -799,6 +724,255 @@
         const SUPABASE_ANON_KEY = "sb_publishable_TAsCglmNK5MKehKbkS8gwg_b2uZK8ug";
 
         const CATALOG_RESET_VERSION = 1;
+        const ANALOGY_ITEMS = [
+            { name: 'Смышлёный мышонок', weight: 0.03 },
+            { name: 'Голубь', weight: 0.35 },
+            { name: 'Крыса', weight: 0.30 },
+            { name: 'Кролик', weight: 2.2 },
+            { name: 'Кошка', weight: 4.0 },
+            { name: 'Такса', weight: 9.0 },
+            { name: 'Енот', weight: 8.0 },
+            { name: 'Корги', weight: 12.0 },
+            { name: 'Лисица', weight: 6.5 },
+            { name: 'Бобр', weight: 20.0 },
+            { name: 'Козёл', weight: 55.0 },
+            { name: 'Овца', weight: 70.0 },
+            { name: 'Свинья', weight: 120.0 },
+            { name: 'Олень', weight: 160.0 },
+            { name: 'Лев', weight: 190.0 },
+            { name: 'Тигр', weight: 220.0 },
+            { name: 'Пони', weight: 250.0 },
+            { name: 'Кенгуру', weight: 85.0 },
+            { name: 'Корова', weight: 550.0 },
+            { name: 'Лошадь', weight: 500.0 },
+            { name: 'Носорог', weight: 2000.0 },
+            { name: 'Слон африканский', weight: 5000.0 },
+            { name: 'Скрепка', weight: 0.001 },
+            { name: 'Карандаш', weight: 0.007 },
+            { name: 'Смартфон', weight: 0.20 },
+            { name: 'Гантель 2 кг', weight: 2.0 },
+            { name: 'Гантель 10 кг', weight: 10.0 },
+            { name: 'Гиря 16 кг', weight: 16.0 },
+            { name: 'Гиря 24 кг', weight: 24.0 },
+            { name: 'Диск 20 кг', weight: 20.0 },
+            { name: 'Штанга (гриф олимпийский)', weight: 20.0 },
+            { name: 'Штанга 100 кг', weight: 100.0 },
+            { name: 'Штанга 200 кг', weight: 200.0 },
+            { name: 'Пустая бутылка 1 л', weight: 0.05 },
+            { name: 'Бутылка воды 1.5 л', weight: 1.5 },
+            { name: 'Пакет с картошкой', weight: 5.0 },
+            { name: 'Арбуз', weight: 8.0 },
+            { name: 'Микроволновка', weight: 12.0 },
+            { name: 'Пылесос', weight: 6.0 },
+            { name: 'Стиральная машина', weight: 60.0 },
+            { name: 'Холодильник', weight: 80.0 },
+            { name: 'Дверь межкомнатная', weight: 25.0 },
+            { name: 'Автомобильное колесо', weight: 20.0 },
+            { name: 'Мотоцикл эндуро', weight: 115.0 },
+            { name: 'Бочка 200 л (пустая)', weight: 20.0 },
+            { name: 'Бочка 200 л с водой', weight: 220.0 },
+            { name: 'Паллет (EUR) деревянный', weight: 25.0 },
+            { name: 'Диван 3-местный', weight: 80.0 },
+            { name: 'Рояль', weight: 300.0 },
+            { name: 'Легковой автомобиль', weight: 1400.0 },
+            { name: 'Комар-качок', weight: 0.000003 },
+            { name: 'Муха-рейсер', weight: 0.000012 },
+            { name: 'Муравей-работяга', weight: 0.000005 },
+            { name: 'Хомяк-булка', weight: 0.12 },
+            { name: 'Мышь-ниндзя', weight: 0.03 },
+            { name: 'Голубь-начальник района', weight: 0.35 },
+            { name: 'Крыса-менеджер подвала', weight: 0.30 },
+            { name: 'Кот-охранник кухни', weight: 4.0 },
+            { name: 'Кошка-барыня', weight: 4.5 },
+            { name: 'Пёсель-на-расслабоне', weight: 12.0 },
+            { name: 'Такса-сосиска', weight: 9.0 },
+            { name: 'Енот-разбойник', weight: 8.0 },
+            { name: 'Лиса-интриганка', weight: 6.5 },
+            { name: 'Бобр-строитель года', weight: 20.0 },
+            { name: 'Коза-провокатор', weight: 55.0 },
+            { name: 'Овца-«я просто мимо»', weight: 70.0 },
+            { name: 'Свин-босс', weight: 120.0 },
+            { name: 'Олень-элегантный танк', weight: 160.0 },
+            { name: 'Лев-«я тут главный»', weight: 190.0 },
+            { name: 'Тигр-полосатый аргумент', weight: 220.0 },
+            { name: 'Пони-перепутал себя с конём', weight: 250.0 },
+            { name: 'Кенгуру-пружина', weight: 85.0 },
+            { name: 'Корова-легенда фермы', weight: 550.0 },
+            { name: 'Лошадь-турбо режим', weight: 500.0 },
+            { name: 'Носорог-«не трогай»', weight: 2000.0 },
+            { name: 'Слон-режим "2 тонны? смешно"', weight: 5000.0 },
+            { name: 'Скрепка судьбы', weight: 0.001 },
+            { name: 'Карандаш-стратег', weight: 0.007 },
+            { name: 'Телефон-кирпичик', weight: 0.20 },
+            { name: 'Бутылка воды "я на ПП"', weight: 1.5 },
+            { name: 'Пакет картохи "на неделю"', weight: 5.0 },
+            { name: 'Арбуз-убийца спины', weight: 8.0 },
+            { name: 'Микроволновка-маг', weight: 12.0 },
+            { name: 'Пылесос-охотник на пыль', weight: 6.0 },
+            { name: 'Стиралка-центрифуга зла', weight: 60.0 },
+            { name: 'Холодильник-страж ночного дожора', weight: 80.0 },
+            { name: 'Дверь-"не хлопай!"', weight: 25.0 },
+            { name: 'Колесо-"сезонка пришла"', weight: 20.0 },
+            { name: 'Гантель-двушечка "для разогрева"', weight: 2.0 },
+            { name: 'Гантель-десяточка "уже серьёзно"', weight: 10.0 },
+            { name: 'Гиря-16 "народная"', weight: 16.0 },
+            { name: 'Гиря-24 "богатырская"', weight: 24.0 },
+            { name: 'Блин-20 "не блин, а диск"', weight: 20.0 },
+            { name: 'Гриф олимпийский "голый король"', weight: 20.0 },
+            { name: 'Штанга-100 "классика жанра"', weight: 100.0 },
+            { name: 'Штанга-200 "уважение в зале"', weight: 200.0 },
+            { name: 'Паллет "евро-трон"', weight: 25.0 },
+            { name: 'Рояль "музыка боли"', weight: 300.0 },
+            { name: 'Рулон туалетной бумаги "сила цивилизации"', weight: 0.2 },
+            { name: 'Унитаз "трон чемпиона"', weight: 25.0 },
+            { name: 'Чугунная крышка люка "легко, если ты Халк"', weight: 50.0 },
+            { name: 'Мешок цемента "пакетик из ада"', weight: 25.0 },
+            { name: 'Кирпич "аргумент"', weight: 3.5 },
+            { name: 'Пачка бумаги А4 "офисный пресс"', weight: 2.5 },
+            { name: 'Энциклопедия "не открою, но подниму"', weight: 1.8 },
+            { name: 'Кастрюля 5 л "варево силы"', weight: 2.2 },
+            { name: 'Сковорода чугунная "лопата мести"', weight: 3.0 },
+            { name: 'Дверца духовки "щёлк и минус поясница"', weight: 8.0 },
+            { name: 'Газовый баллон 50 л (пустой) "не шутка"', weight: 22.0 },
+            { name: 'Газовый баллон 50 л (полный) "вот это уже да"', weight: 43.0 },
+            { name: 'Огнетушитель 5 кг "красный танк"', weight: 7.5 },
+            { name: 'Кулер с бутыльём "офисный Геракл"', weight: 20.0 },
+            { name: 'Бутыль 19 л "легенда офисов"', weight: 19.0 },
+            { name: 'Рюкзак школьника "портал в страдание"', weight: 8.0 },
+            { name: 'Чемодан "в отпуск не летит, он ползёт"', weight: 18.0 },
+            { name: 'Сумка с инструментами "тяжёлый разговор"', weight: 15.0 },
+            { name: 'Перфоратор "босс ремонта"', weight: 4.0 },
+            { name: 'Стремянка "ступени к величию"', weight: 7.0 },
+            { name: 'Автомобильный аккумулятор "кирпич энергии"', weight: 18.0 },
+            { name: 'Блок двигателя "металлическая карма"', weight: 55.0 },
+            { name: 'Глушитель "труба судьбы"', weight: 12.0 },
+            { name: 'Радиатор отопления "домашний пресс"', weight: 25.0 },
+            { name: 'Чугунная батарея секция "мини-ад"', weight: 7.0 },
+            { name: 'Велосипед "легко… пока не на 5 этаж"', weight: 14.0 },
+            { name: 'Самокат "пыльный гонщик"', weight: 5.0 },
+            { name: 'Сноуборд "доска для падений"', weight: 4.5 },
+            { name: 'Лыжи "палки гордости"', weight: 5.0 },
+            { name: 'Гитара "рок тяжесть"', weight: 3.5 },
+            { name: 'Телевизор 55" "чёрное зеркало"', weight: 16.0 },
+            { name: 'Монитор 27" "портал в работу"', weight: 6.0 },
+            { name: 'Системный блок "ящик страданий"', weight: 12.0 },
+            { name: 'Домашний принтер "съел картридж"', weight: 7.0 },
+            { name: 'Пачка кошачьего наполнителя "мешок судьбы"', weight: 10.0 },
+            { name: 'Мешок корма для собаки "еда титанов"', weight: 15.0 },
+            { name: 'Мешок сахара "сладкая гиря"', weight: 50.0 },
+            { name: 'Сетка картохи "русский стандарт"', weight: 25.0 },
+            { name: 'Ящик банок (12×0.5) "вечеринка в руках"', weight: 6.0 },
+            { name: 'Пак воды 6×1.5 "суперсет"', weight: 9.0 },
+            { name: 'Пак молока 12×1 "молочный жим"', weight: 12.0 },
+            { name: 'Ковёр "свернул — стал качком"', weight: 20.0 },
+            { name: 'Матрас "я несу сон"', weight: 25.0 },
+            { name: 'Дверь входная металлическая "финальный босс"', weight: 70.0 },
+            { name: 'Сейф "а теперь подними ответственность"', weight: 90.0 },
+            { name: 'Мешок песка "тренер молчит"', weight: 25.0 },
+            { name: 'Столешница каменная "богатый пресс"', weight: 60.0 },
+            { name: 'Статуэтка-слон "символичный чит"', weight: 4.0 },
+            { name: 'Дорожный конус "я тут главный"', weight: 3.0 },
+            { name: 'Свернутый садовый шланг "змея-домосед"', weight: 6.0 },
+            { name: 'Удлинитель на 50 м "лапша судьбы"', weight: 7.0 },
+            { name: 'Коробка с проводами "всё пригодится"', weight: 12.0 },
+            { name: 'Манекен "спортсмен без души"', weight: 8.0 },
+            { name: 'Мешок мокрых полотенец "почему оно ТАК тяжело"', weight: 18.0 },
+            { name: 'Коробка книг "умный — значит тяжёлый"', weight: 25.0 },
+            { name: 'Пачка плитки керамической "ремонтный кач"', weight: 20.0 },
+            { name: 'Рулон линолеума "свернул и прозрел"', weight: 35.0 },
+            { name: 'Рулон ковролина "обнимашки с болью"', weight: 30.0 },
+            { name: 'Мокрый ковёр "легендарная ловушка"', weight: 40.0 },
+            { name: 'Ящик с инструментами "чемодан решалы"', weight: 15.0 },
+            { name: 'Домкрат "подниму твою самооценку"', weight: 4.0 },
+            { name: 'Канистра 20 л "бензиновые мечты"', weight: 20.0 },
+            { name: 'Канистра 20 л (пустая) "кажется лёгкой"', weight: 1.5 },
+            { name: 'Гантеля "потерялась одна"', weight: 7.5 },
+            { name: 'Кастрюля борща "питание чемпиона"', weight: 6.0 },
+            { name: 'Ведро воды "старый тест силы"', weight: 10.0 },
+            { name: 'Ведро песка "плечи на завтра"', weight: 16.0 },
+            { name: 'Ящик яблок "ЗОЖ, но больно"', weight: 12.0 },
+            { name: 'Мешок лука "слёзы и сила"', weight: 25.0 },
+            { name: 'Мешок картохи "русский жим"', weight: 25.0 },
+            { name: 'Огромный плюшевый медведь "обниму и унесу"', weight: 10.0 },
+            { name: 'Гигантская мягкая игрушка-акула "хищник-ватник"', weight: 6.0 },
+            { name: 'Палка колбасы "трофей качалки"', weight: 1.2 },
+            { name: 'Бутыль 19 л "офисный босс"', weight: 19.0 },
+            { name: 'Коробка пиццы "лёгкий читмил"', weight: 1.0 },
+            { name: 'Коробка из-под техники "пустая гордость"', weight: 2.0 },
+            { name: 'Моноблок/ПК "алтарь работы"', weight: 9.0 },
+            { name: 'Кулек с монетами "копилка боли"', weight: 8.0 },
+            { name: 'Пакет с бутылками стекла "звенящий ужас"', weight: 15.0 },
+            { name: 'Клетка для кота "побег не выйдет"', weight: 4.0 },
+            { name: 'Кошачий наполнитель 10 л "мешок гравитации"', weight: 10.0 },
+            { name: 'Большой пакет корма "еда для зверя"', weight: 15.0 },
+            { name: 'Складной стол "кемпинг-кач"', weight: 12.0 },
+            { name: 'Складной стул "трон туриста"', weight: 4.0 },
+            { name: 'Туристическая палатка "дом на спине"', weight: 6.0 },
+            { name: 'Надутый матрас "лёгкий, пока не сдувается"', weight: 3.0 },
+            { name: 'Набор гантелей в кейсе "бизнес-железо"', weight: 25.0 },
+            { name: 'Скалка "оружие бабушки"', weight: 0.6 },
+            { name: 'Чугунная решётка "гриль-режим"', weight: 8.0 },
+            { name: 'Казан "плов и уважение"', weight: 10.0 },
+            { name: 'Длинная лестница "шаги к величию"', weight: 18.0 },
+            { name: 'Большой вентилятор "ветер перемен"', weight: 6.0 },
+            { name: 'Старая батарея отопления "дедовский пресс"', weight: 25.0 },
+            { name: 'Коробка с посудой "переездный ад"', weight: 22.0 },
+            { name: 'Пакет земли для цветов "садовый танк"', weight: 20.0 },
+            { name: 'Большой мешок мусора "почему ты не лёгкий?"', weight: 12.0 },
+            { name: 'Доска для глажки "щит домохозяйки"', weight: 6.0 }
+        ];
+        const MOTIVATION_PHRASES = [
+            "Сегодня не сдулся — уже победа.",
+            "Поднял железо — поднял уважение.",
+            "Мышцы не знают шуток. Я — знаю.",
+            "Минус сомнения, плюс повторы.",
+            "Делаю вид, что легко. (Но это ложь.)",
+            "Пот — это слёзы слабости. (Сбежали.)",
+            "Тренировка: 1, Лень: 0.",
+            "Не хочу — не считается. Сделал — считается.",
+            "Гриф тяжёлый, а я ещё тяжелее характером.",
+            "Сегодня качал тело, завтра — самооценку.",
+            "Жму, потому что могу. Но не всегда.",
+            "Если болит — значит живой. Если очень болит — значит качаюсь.",
+            "План простой: поднял — красавчик.",
+            "Сначала страдаю, потом хвастаюсь.",
+            "Я не ленивый — я на паузе между подходами.",
+            "Дышу тяжело, но гордо.",
+            "Мой кардио — донести штангу обратно.",
+            "Мотивация? У меня есть злость и музыка.",
+            "Я не устал — я “в процессе улучшения”.",
+            "Ещё один подход — и я легенда. (Почти.)",
+            "Сейчас тяжело — потом будет… тоже тяжело, но ты сильнее.",
+            "Качаю спину, чтобы жизнь не ломала.",
+            "Сегодня я был железнее железа.",
+            "Сделал подход — закрыл гештальт.",
+            "Бицепс растёт от любви… к гантелям.",
+            "Если страшно — значит вес нормальный.",
+            "Качал ноги: теперь лестницы меня уважают.",
+            "Поднял — значит моё.",
+            "Спорт — это когда добровольно страдаешь.",
+            "Боль пройдёт, сторис останутся.",
+            "Тренер внутри меня сказал: “ещё”. Я ответил: “ну ладно…”",
+            "Я не потею — я вытекаю прогрессом.",
+            "Упал? Это просто низкий старт.",
+            "Сильный не тот, кто не устал, а кто допил воду и пошёл дальше.",
+            "Памп — это когда мышцы празднуют.",
+            "Не ищу лёгкий путь — я его не подниму.",
+            "Сделал минимум — получил максимум гордости.",
+            "Сегодня я был как бобр: строил тело.",
+            "Я — как енот: тащу железо и горжусь.",
+            "Слон бы одобрил этот тоннаж.",
+            "Гантели видели мои слёзы и молчат.",
+            "Отдых — это когда думаешь о следующем подходе.",
+            "Я пришёл. Я увидел. Я присел.",
+            "Подходы закончились — герой остался.",
+            "В зал пришёл человек. Вышел — персонаж.",
+            "Тело: “зачем?” Я: “потом спасибо скажешь.”",
+            "Сегодня не рекорд — но дисциплина.",
+            "Слабость ушла. Осталась только дрожь.",
+            "Качаюсь не быстро. Зато регулярно.",
+            "Устал? Отлично. Значит работал."
+        ];
         const DEFAULT_CATALOG = {
             "Грудь": [
                 "Брусья",
@@ -841,7 +1015,6 @@
             selectedDateKey: toDateKey(new Date()),
             currentMonth: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
             activeTab: "calendar",
-            restTimer: { remaining: 0, total: 0, intervalId: null, running: false },
             chart: null,
             selectedExercise: "",
             selectedCatalogGroup: GROUPS[0],
@@ -854,11 +1027,11 @@
             user: null,
             supabase: null,
             syncing: false,
-            remoteCache: { workouts: {}, catalogs: {} }
+            remoteCache: { workouts: {}, catalogs: {} },
+            lastTonnage: null,
+            analogyText: ""
         };
 
-        const WEIGHT_OPTIONS = buildWeightOptions();
-        const REP_OPTIONS = buildRepOptions();
         const CHART_TYPES = [
             { value: "max", label: "Макс. вес" },
             { value: "tonnage", label: "Тоннаж" },
@@ -887,10 +1060,8 @@
         const tonnageValue = document.getElementById("tonnageValue");
         const durationValue = document.getElementById("durationValue");
         const workoutStatus = document.getElementById("workoutStatus");
+        const tonnageAnalogy = document.getElementById("tonnageAnalogy");
         const moodBlock = document.getElementById("moodBlock");
-        const timerDisplay = document.getElementById("timerDisplay");
-        const timerStatus = document.getElementById("timerStatus");
-        const timerBar = document.getElementById("timerBar");
         const exerciseSelect = document.getElementById("exerciseSelect");
         const chartTypeSelect = document.getElementById("chartTypeSelect");
         const periodSelect = document.getElementById("periodSelect");
@@ -904,10 +1075,12 @@
         const authStatus = document.getElementById("authStatus");
         const syncStatus = document.getElementById("syncStatus");
         const logoutButton = document.getElementById("logoutButton");
+        const headerTitle = document.getElementById("headerTitle");
 
         initSupabase();
         renderAll();
         setupEventListeners();
+        initMotivation();
 
         function setupEventListeners() {
             document.getElementById("tabs").addEventListener("click", (event) => {
@@ -922,9 +1095,6 @@
                 const action = button.dataset.action;
                 if (action === "prev-month") changeMonth(-1);
                 if (action === "next-month") changeMonth(1);
-                if (action === "timer-start") startTimer();
-                if (action === "timer-pause") pauseTimer();
-                if (action === "timer-reset") resetTimer();
                 if (action === "refresh-charts") renderCharts();
                 if (action === "delete-entry") deleteEntry(button.dataset.id);
                 if (action === "delete-set") deleteSet(button.dataset.entryId, button.dataset.setId);
@@ -934,9 +1104,7 @@
                 if (action === "delete-catalog") deleteCatalog(button.dataset.group, decodeName(button.dataset.name));
                 if (action === "rename-catalog") renameCatalogPrompt(button.dataset.group, decodeName(button.dataset.name));
                 if (action === "add-entry") addEntryFromCatalog(button.dataset.group);
-                if (action === "plus-rest") incrementRest(button.dataset.entryId);
-                if (action === "toggle-manual") toggleManualInput(button.dataset.entryId);
-                if (action === "repeat-plus") addRepeatPlus(button.dataset.entryId);
+                if (action === "copy-set") copySet(button.dataset.entryId, button.dataset.setId);
                 if (action === "export-data") exportData();
                 if (action === "select-group") selectCatalogGroup(button.dataset.group);
                 if (action === "show-chart") showChartForExercise(decodeName(button.dataset.name));
@@ -959,27 +1127,6 @@
                 setActiveTab("workout");
             });
 
-
-            entriesList.addEventListener("submit", (event) => {
-                const form = event.target.closest(".set-form");
-                if (!form) return;
-                event.preventDefault();
-                const entryId = form.dataset.entryId;
-                const weightManual = parseFloat(form.querySelector("[name=weightManual]").value);
-                const repsManual = parseInt(form.querySelector("[name=repsManual]").value, 10);
-                const weightSelect = parseFloat(form.querySelector("[name=weightSelect]").value);
-                const repsSelect = parseInt(form.querySelector("[name=repsSelect]").value, 10);
-                const weight = Number.isFinite(weightManual) ? weightManual : weightSelect;
-                const reps = Number.isFinite(repsManual) ? repsManual : repsSelect;
-                const restMin = parseInt(form.querySelector("[name=restMin]").value, 10) || 0;
-                if (!Number.isFinite(weight) || !Number.isFinite(reps)) return;
-                addSet(entryId, weight, reps, restMin);
-                form.reset();
-                const manualRow = form.querySelector(".manual-row");
-                const toggleBtn = form.querySelector("[data-action=toggle-manual]");
-                if (manualRow) manualRow.classList.add("hidden");
-                if (toggleBtn) toggleBtn.textContent = "Ручной ввод";
-            });
 
             moodBlock.addEventListener("click", (event) => {
                 const star = event.target.closest("[data-mood]");
@@ -1078,8 +1225,10 @@
         function renderWorkout() {
             ensureWorkout(state.selectedDateKey);
             selectedDateLabel.textContent = formatDate(state.selectedDateKey);
-            tonnageValue.textContent = formatNumber(calculateTonnage(state.selectedDateKey));
+            const totalTonnage = calculateTonnage(state.selectedDateKey);
+            tonnageValue.textContent = formatNumber(totalTonnage);
             renderDuration();
+            updateTonnageAnalogy(totalTonnage);
 
             const workout = state.data.workoutsByDate[state.selectedDateKey];
             moodBlock.innerHTML = `
@@ -1106,7 +1255,6 @@
 
             entriesList.innerHTML = workout.entries.map(entry => {
                 const setsHtml = entry.sets.map((set, index) => {
-                const restText = set.restSec ? formatDuration(set.restSec) : "—";
                     const isEditing = state.editingSet && state.editingSet.entryId === entry.id && state.editingSet.setId === set.id;
                     return `
                         <div class="set-row">
@@ -1114,7 +1262,7 @@
                                 #${index + 1} · ${isEditing ? `
                                     <input class=\"input\" type=\"number\" step=\"0.5\" min=\"0\" value=\"${set.weight}\" data-edit-weight>
                                     <input class=\"input\" type=\"number\" min=\"1\" value=\"${set.reps}\" data-edit-reps>
-                                ` : `${set.weight} кг × ${set.reps} повторений`} · отдых ${restText}
+                                ` : `${set.weight} кг × ${set.reps} повторений`}
                             </div>
                             <div class="catalog-actions">
                                 ${isEditing ? `
@@ -1122,6 +1270,7 @@
                                     <button class=\"icon-action\" data-action=\"cancel-edit\" aria-label=\"Отмена\" title=\"Отмена\">✖</button>
                                 ` : `
                                     <button class=\"icon-action\" data-action=\"edit-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Редактировать\" title=\"Редактировать\">✏️</button>
+                                    <button class=\"icon-action\" data-action=\"copy-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Копировать\" title=\"Копировать\">📋</button>
                                     <button class=\"icon-action\" data-action=\"delete-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Удалить\" title=\"Удалить\">🗑</button>
                                 `}
                             </div>
@@ -1142,23 +1291,6 @@
                             </div>
                         </div>
                         ${setsHtml || "<div class=\"empty\">Подходов пока нет.</div>"}
-                        <form class="set-form" data-entry-id="${entry.id}">
-                            <select class="input" name="weightSelect" required>
-                                ${WEIGHT_OPTIONS}
-                            </select>
-                            <select class="input" name="repsSelect" required>
-                                ${REP_OPTIONS}
-                            </select>
-                            <input class="input" name="restMin" type="number" min="0" placeholder="Отдых, мин">
-                            <button class="ghost-btn" type="button" data-action="plus-rest" data-entry-id="${entry.id}">+1 мин</button>
-                            <button class="ghost-btn" type="button" data-action="toggle-manual" data-entry-id="${entry.id}">Ручной ввод</button>
-                            <button class="ghost-btn" type="button" data-action="repeat-plus" data-entry-id="${entry.id}" ${entry.sets.length ? "" : "disabled"}>Повторить +1</button>
-                            <button class="btn" type="submit">Добавить подход</button>
-                            <div class="manual-row hidden">
-                                <input class="input" name="weightManual" type="number" min="0" step="0.5" placeholder="Вес вручную, кг">
-                                <input class="input" name="repsManual" type="number" min="1" placeholder="Повторы вручную">
-                            </div>
-                        </form>
                     </div>
                 `;
             }).join("");
@@ -1411,11 +1543,20 @@
             if (!workout.durationStart) {
                 workout.durationStart = new Date().toISOString();
             }
+            const initial = findPreviousFirstSet(name, state.selectedDateKey) || { weight: 0, reps: 0 };
             workout.entries.push({
                 id: cryptoId(),
                 group,
                 name,
-                sets: []
+                sets: [
+                    {
+                        id: cryptoId(),
+                        weight: initial.weight,
+                        reps: initial.reps,
+                        restSec: 0,
+                        createdAt: new Date().toISOString()
+                    }
+                ]
             });
             workout.updatedAt = new Date().toISOString();
             saveData();
@@ -1433,16 +1574,17 @@
             renderCharts();
         }
 
-        function addSet(entryId, weight, reps, restMin) {
+        function copySet(entryId, setId) {
             const workout = ensureWorkout(state.selectedDateKey);
             const entry = workout.entries.find(item => item.id === entryId);
             if (!entry) return;
-            const restSec = Math.max(0, restMin) * 60;
+            const set = entry.sets.find(item => item.id === setId);
+            if (!set) return;
             entry.sets.push({
                 id: cryptoId(),
-                weight,
-                reps,
-                restSec,
+                weight: set.weight,
+                reps: set.reps,
+                restSec: 0,
                 createdAt: new Date().toISOString()
             });
             workout.updatedAt = new Date().toISOString();
@@ -1450,56 +1592,6 @@
             renderWorkout();
             renderCalendar();
             renderCharts();
-            if (restSec > 0) {
-                startTimer(restSec);
-            }
-        }
-
-        function incrementRest(entryId) {
-            const form = entriesList.querySelector(`.set-form[data-entry-id="${entryId}"]`);
-            if (!form) return;
-            const input = form.querySelector("[name=restMin]");
-            const current = parseInt(input.value, 10) || 0;
-            input.value = current + 1;
-            input.focus();
-        }
-
-        function addRepeatPlus(entryId) {
-            const workout = ensureWorkout(state.selectedDateKey);
-            const entry = workout.entries.find(item => item.id === entryId);
-            if (!entry || !entry.sets.length) return;
-            const lastSet = entry.sets[entry.sets.length - 1];
-            const newSet = {
-                id: cryptoId(),
-                weight: lastSet.weight,
-                reps: lastSet.reps + 1,
-                restSec: lastSet.restSec || 0,
-                createdAt: new Date().toISOString()
-            };
-            entry.sets.push(newSet);
-            workout.updatedAt = new Date().toISOString();
-            saveData();
-            renderWorkout();
-            renderCalendar();
-            renderCharts();
-            if (newSet.restSec > 0) {
-                startTimer(newSet.restSec);
-            }
-        }
-
-        function toggleManualInput(entryId) {
-            const form = entriesList.querySelector(`.set-form[data-entry-id="${entryId}"]`);
-            if (!form) return;
-            const manualRow = form.querySelector(".manual-row");
-            const toggleBtn = form.querySelector("[data-action=toggle-manual]");
-            if (!manualRow || !toggleBtn) return;
-            const isHidden = manualRow.classList.contains("hidden");
-            manualRow.classList.toggle("hidden", !isHidden);
-            toggleBtn.textContent = isHidden ? "Скрыть ввод" : "Ручной ввод";
-            if (isHidden) {
-                const input = manualRow.querySelector("[name=weightManual]");
-                if (input) input.focus();
-            }
         }
 
         function deleteSet(entryId, setId) {
@@ -1852,24 +1944,6 @@
             return result;
         }
 
-        function buildWeightOptions() {
-            const values = [];
-            for (let value = 0; value <= 300; value += 2.5) {
-                const rounded = Math.round(value * 10) / 10;
-                const label = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-                values.push(`<option value="${label}">${label} кг</option>`);
-            }
-            return values.join("");
-        }
-
-        function buildRepOptions() {
-            const values = [];
-            for (let value = 1; value <= 30; value += 1) {
-                values.push(`<option value="${value}">${value} повторов</option>`);
-            }
-            return values.join("");
-        }
-
         function ensureWorkout(dateKey) {
             if (!state.data.workoutsByDate[dateKey]) {
                 state.data.workoutsByDate[dateKey] = {
@@ -1909,56 +1983,6 @@
         function changeMonth(direction) {
             state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + direction, 1);
             renderCalendar();
-        }
-
-        function startTimer(forcedSeconds) {
-            if (forcedSeconds !== undefined) {
-                state.restTimer.total = forcedSeconds;
-                state.restTimer.remaining = forcedSeconds;
-            } else if (state.restTimer.remaining === 0 && state.restTimer.total > 0) {
-                state.restTimer.remaining = state.restTimer.total;
-            }
-            if (state.restTimer.remaining <= 0) return;
-            clearInterval(state.restTimer.intervalId);
-            state.restTimer.running = true;
-            timerStatus.textContent = "Отдых идет";
-            state.restTimer.intervalId = setInterval(() => {
-                state.restTimer.remaining -= 1;
-                if (state.restTimer.remaining <= 0) {
-                    state.restTimer.remaining = 0;
-                    pauseTimer();
-                    timerStatus.textContent = "Отдых завершен";
-                }
-                renderTimer();
-            }, 1000);
-            renderTimer();
-        }
-
-        function pauseTimer() {
-            clearInterval(state.restTimer.intervalId);
-            state.restTimer.intervalId = null;
-            state.restTimer.running = false;
-            if (state.restTimer.remaining > 0) {
-                timerStatus.textContent = "Пауза";
-            }
-            renderTimer();
-        }
-
-        function resetTimer() {
-            clearInterval(state.restTimer.intervalId);
-            state.restTimer.intervalId = null;
-            state.restTimer.remaining = state.restTimer.total || 0;
-            state.restTimer.running = false;
-            timerStatus.textContent = "Готов к старту";
-            renderTimer();
-        }
-
-        function renderTimer() {
-            timerDisplay.textContent = formatDuration(state.restTimer.remaining);
-            const percent = state.restTimer.total ? (state.restTimer.remaining / state.restTimer.total) * 100 : 0;
-            timerBar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
-            const expired = state.restTimer.total > 0 && state.restTimer.remaining === 0;
-            timerBar.classList.toggle("expired", expired);
         }
 
         function renderDuration() {
@@ -2080,6 +2104,23 @@
                     const entry = workout.entries[j];
                     if (entry.name !== name || !entry.sets.length) continue;
                     return entry.sets[entry.sets.length - 1];
+                }
+            }
+            return null;
+        }
+
+        function findPreviousFirstSet(name, currentDateKey) {
+            const dates = Object.keys(state.data.workoutsByDate).sort();
+            const currentIndex = dates.indexOf(currentDateKey);
+            const endIndex = currentIndex === -1 ? dates.length : currentIndex;
+            for (let i = endIndex - 1; i >= 0; i -= 1) {
+                const dateKey = dates[i];
+                const workout = state.data.workoutsByDate[dateKey];
+                if (!workout || !workout.entries) continue;
+                for (let j = 0; j < workout.entries.length; j += 1) {
+                    const entry = workout.entries[j];
+                    if (entry.name !== name || !entry.sets.length) continue;
+                    return entry.sets[0];
                 }
             }
             return null;
@@ -2292,12 +2333,6 @@
             return dates.filter(dateKey => parseDateKey(dateKey).getTime() >= startTime);
         }
 
-        function formatDuration(totalSeconds) {
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-        }
-
         function formatDurationHMS(totalSeconds) {
             const hours = Math.floor(totalSeconds / 3600);
             const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -2316,6 +2351,47 @@
 
         function formatNumber(value) {
             return Number(value || 0).toLocaleString("ru-RU");
+        }
+
+        function updateTonnageAnalogy(tonnage) {
+            if (!tonnageAnalogy) return;
+            if (state.lastTonnage === tonnage && state.analogyText) {
+                tonnageAnalogy.textContent = state.analogyText;
+                return;
+            }
+            const text = buildAnalogyText(tonnage);
+            state.lastTonnage = tonnage;
+            state.analogyText = text;
+            tonnageAnalogy.textContent = text;
+        }
+
+        function initMotivation() {
+            if (!headerTitle || !MOTIVATION_PHRASES.length) return;
+            const update = () => {
+                const phrase = randomItem(MOTIVATION_PHRASES);
+                headerTitle.textContent = phrase;
+            };
+            update();
+            setInterval(update, 10 * 60 * 1000);
+        }
+
+        function buildAnalogyText(tonnage) {
+            if (!ANALOGY_ITEMS.length) return "";
+            const first = randomItem(ANALOGY_ITEMS);
+            let second = randomItem(ANALOGY_ITEMS);
+            let attempts = 0;
+            while (second.name === first.name && attempts < 5) {
+                second = randomItem(ANALOGY_ITEMS);
+                attempts += 1;
+            }
+            const firstCount = Math.max(1, Math.round(tonnage / first.weight));
+            const secondCount = Math.max(1, Math.round(tonnage / second.weight));
+            return `Аналогии веса: ≈ ${firstCount} ${first.name} + ${secondCount} ${second.name}`;
+        }
+
+        function randomItem(list) {
+            const index = Math.floor(Math.random() * list.length);
+            return list[index];
         }
 
         function legacyDateToKey(value) {
