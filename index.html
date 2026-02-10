@@ -91,6 +91,19 @@
             margin-bottom: 12px;
         }
 
+        .sync-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .sync-actions .ghost-btn {
+            color: #e2e8f0;
+            border-color: rgba(226, 232, 240, 0.6);
+            background: rgba(226, 232, 240, 0.08);
+        }
+
         .auth-row {
             display: flex;
             flex-wrap: wrap;
@@ -685,7 +698,10 @@
             </div>
         </header>
 
-        <div class="sync-status" id="syncStatus">⚠️ Синхронизация отключена</div>
+        <div class="sync-actions">
+            <div class="sync-status" id="syncStatus">⚠️ Синхронизация отключена</div>
+            <button class="ghost-btn" type="button" data-action="auth-logout" id="logoutButton">Выйти</button>
+        </div>
 
         <div class="auth-panel" id="authPanel">
             <div class="auth-row">
@@ -885,6 +901,7 @@
         const authPassword = document.getElementById("authPassword");
         const authStatus = document.getElementById("authStatus");
         const syncStatus = document.getElementById("syncStatus");
+        const logoutButton = document.getElementById("logoutButton");
 
         initSupabase();
         renderAll();
@@ -1569,6 +1586,9 @@
                 const icon = state.user ? "✅" : "⚠️";
                 const text = message || (state.user ? "Синхронизация включена" : "Синхронизация отключена");
                 syncStatus.textContent = `${icon} ${text}`;
+            }
+            if (logoutButton) {
+                logoutButton.style.display = state.user ? "inline-flex" : "none";
             }
             if (authPanel) {
                 authPanel.style.display = state.user ? "none" : "grid";
