@@ -798,6 +798,44 @@
         const SUPABASE_URL = "https://dwgdefrmmykfzsvtcsjh.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_TAsCglmNK5MKehKbkS8gwg_b2uZK8ug";
 
+        const CATALOG_RESET_VERSION = 1;
+        const DEFAULT_CATALOG = {
+            "Грудь": [
+                "Брусья",
+                "Отжимания",
+                "Жим лежа",
+                "Разводка гантелей на скамье",
+                "Кроссовер (верхнее положение)",
+                "Кроссовер (нижнее положение)"
+            ],
+            "Спина": [
+                "Брусья",
+                "Отжимания",
+                "Тяга штанги к поясу",
+                "Тяга гантели на скамье",
+                "Кроссовер (горизонтальный)",
+                "Кроссовер (вертикальный)"
+            ],
+            "Руки": [
+                "Бицепс — гантели к плечу",
+                "Бицепс — хамер",
+                "Трицепс — кроссовер"
+            ],
+            "Ноги": [
+                "Присед со штангой",
+                "Болгарская тяга на двух",
+                "Болгарская тяга на одной",
+                "Колено за носок",
+                "Выпады"
+            ],
+            "Плечи": [
+                "Плечи — тяга штанги",
+                "Разводка",
+                "Кроссовер"
+            ],
+            "Пресс": ["Качать"]
+        };
+
         const state = {
             data: loadData(),
             selectedDateKey: toDateKey(new Date()),
@@ -837,42 +875,6 @@
             { value: "90", label: "Последние 90 дней" },
             { value: "custom", label: "Свой диапазон" }
         ];
-        const DEFAULT_CATALOG = {
-            "Грудь": [
-                "Брусья",
-                "Отжимания",
-                "Жим лежа",
-                "Разводка гантелей на скамье",
-                "Кроссовер (верхнее положение)",
-                "Кроссовер (нижнее положение)"
-            ],
-            "Спина": [
-                "Брусья",
-                "Отжимания",
-                "Тяга штанги к поясу",
-                "Тяга гантели на скамье",
-                "Кроссовер (горизонтальный)",
-                "Кроссовер (вертикальный)"
-            ],
-            "Руки": [
-                "Бицепс — гантели к плечу",
-                "Бицепс — хамер",
-                "Трицепс — кроссовер"
-            ],
-            "Ноги": [
-                "Присед со штангой",
-                "Болгарская тяга на двух",
-                "Болгарская тяга на одной",
-                "Колено за носок",
-                "Выпады"
-            ],
-            "Плечи": [
-                "Плечи — тяга штанги",
-                "Разводка",
-                "Кроссовер"
-            ],
-            "Пресс": ["Качать"]
-        };
 
         let durationIntervalId = null;
 
@@ -2098,6 +2100,10 @@
             }
             data.catalogByGroup = data.catalogByGroup || {};
             data.catalogUpdatedAt = data.catalogUpdatedAt || {};
+            if (data.catalogResetVersion !== CATALOG_RESET_VERSION) {
+                overwriteCatalogWithDefaults(data);
+                data.catalogResetVersion = CATALOG_RESET_VERSION;
+            }
             GROUPS.forEach(group => {
                 if (!data.catalogByGroup[group]) data.catalogByGroup[group] = [];
                 if (!data.catalogUpdatedAt[group]) data.catalogUpdatedAt[group] = null;
@@ -2120,6 +2126,14 @@
         function applyDefaultCatalog(data) {
             const isEmpty = GROUPS.every(group => (data.catalogByGroup[group] || []).length === 0);
             if (!isEmpty) return;
+            const now = new Date().toISOString();
+            GROUPS.forEach(group => {
+                data.catalogByGroup[group] = normalizeCatalog(DEFAULT_CATALOG[group] || []);
+                data.catalogUpdatedAt[group] = now;
+            });
+        }
+
+        function overwriteCatalogWithDefaults(data) {
             const now = new Date().toISOString();
             GROUPS.forEach(group => {
                 data.catalogByGroup[group] = normalizeCatalog(DEFAULT_CATALOG[group] || []);
