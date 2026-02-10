@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Тренировочный дневник</title>
+    <link rel="icon" href="favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
@@ -50,6 +51,21 @@
             gap: 12px;
         }
 
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            object-fit: cover;
+            background: #ffffff;
+        }
+
         .header-actions {
             display: flex;
             align-items: center;
@@ -64,6 +80,15 @@
             gap: 8px;
             color: #e2e8f0;
             margin-bottom: 16px;
+        }
+
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #e2e8f0;
+            font-size: 13px;
+            margin-bottom: 12px;
         }
 
         .auth-row {
@@ -637,20 +662,30 @@
                 flex-direction: column;
                 align-items: stretch;
             }
+
+            .logo {
+                width: 40px;
+                height: 40px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="app">
         <header class="header">
-            <div>
-                <div class="header-title">🏋️ Тренировочный дневник</div>
-                <div class="header-subtitle">Календарь, подходы, таймер отдыха и графики</div>
+            <div class="header-brand">
+                <img class="logo" src="logo.png" alt="Логотип">
+                <div>
+                    <div class="header-title">🏋️ Тренировочный дневник</div>
+                    <div class="header-subtitle">Календарь, подходы, таймер отдыха и графики</div>
+                </div>
             </div>
             <div class="header-actions">
                 <button class="export-btn" type="button" data-action="export-data" aria-label="Выгрузить данные" title="Выгрузить данные">⤓</button>
             </div>
         </header>
+
+        <div class="sync-status" id="syncStatus">⚠️ Синхронизация отключена</div>
 
         <div class="auth-panel" id="authPanel">
             <div class="auth-row">
@@ -786,6 +821,42 @@
             { value: "90", label: "Последние 90 дней" },
             { value: "custom", label: "Свой диапазон" }
         ];
+        const DEFAULT_CATALOG = {
+            "Грудь": [
+                "Брусья",
+                "Отжимания",
+                "Жим лежа",
+                "Разводка гантелей на скамье",
+                "Кроссовер (верхнее положение)",
+                "Кроссовер (нижнее положение)"
+            ],
+            "Спина": [
+                "Брусья",
+                "Отжимания",
+                "Тяга штанги к поясу",
+                "Тяга гантели на скамье",
+                "Кроссовер (горизонтальный)",
+                "Кроссовер (вертикальный)"
+            ],
+            "Руки": [
+                "Бицепс — гантели к плечу",
+                "Бицепс — хамер",
+                "Трицепс — кроссовер"
+            ],
+            "Ноги": [
+                "Присед со штангой",
+                "Болгарская тяга на двух",
+                "Болгарская тяга на одной",
+                "Колено за носок",
+                "Выпады"
+            ],
+            "Плечи": [
+                "Плечи — тяга штанги",
+                "Разводка",
+                "Кроссовер"
+            ],
+            "Пресс": ["Качать"]
+        };
 
         let durationIntervalId = null;
 
@@ -813,6 +884,7 @@
         const authEmail = document.getElementById("authEmail");
         const authPassword = document.getElementById("authPassword");
         const authStatus = document.getElementById("authStatus");
+        const syncStatus = document.getElementById("syncStatus");
 
         initSupabase();
         renderAll();
@@ -1003,9 +1075,6 @@
             `;
 
             const isFinished = Boolean(workout.finishedAt);
-            if (isFinished) {
-                state.editingSet = null;
-            }
             workoutStatus.innerHTML = isFinished ? `<span class="status-badge">Завершена</span>` : "";
             const finishBtn = document.querySelector("[data-action=finish-workout]");
             if (finishBtn) finishBtn.disabled = isFinished;
@@ -1019,7 +1088,7 @@
             entriesList.innerHTML = workout.entries.map(entry => {
                 const setsHtml = entry.sets.map((set, index) => {
                 const restText = set.restSec ? formatDuration(set.restSec) : "—";
-                    const isEditing = !isFinished && state.editingSet && state.editingSet.entryId === entry.id && state.editingSet.setId === set.id;
+                    const isEditing = state.editingSet && state.editingSet.entryId === entry.id && state.editingSet.setId === set.id;
                     return `
                         <div class="set-row">
                             <div>
@@ -1033,15 +1102,14 @@
                                     <button class=\"icon-action\" data-action=\"save-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Сохранить\" title=\"Сохранить\">✔</button>
                                     <button class=\"icon-action\" data-action=\"cancel-edit\" aria-label=\"Отмена\" title=\"Отмена\">✖</button>
                                 ` : `
-                                    <button class=\"icon-action\" data-action=\"edit-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Редактировать\" title=\"Редактировать\" ${isFinished ? "disabled" : ""}>✏️</button>
-                                    <button class=\"icon-action\" data-action=\"delete-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Удалить\" title=\"Удалить\" ${isFinished ? "disabled" : ""}>🗑</button>
+                                    <button class=\"icon-action\" data-action=\"edit-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Редактировать\" title=\"Редактировать\">✏️</button>
+                                    <button class=\"icon-action\" data-action=\"delete-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Удалить\" title=\"Удалить\">🗑</button>
                                 `}
                             </div>
                         </div>
                     `;
                 }).join("");
 
-                const disabledAttr = isFinished ? "disabled" : "";
                 return `
                     <div class="entry-card">
                         <div class="entry-header">
@@ -1051,25 +1119,25 @@
                             </div>
                             <div class="catalog-actions">
                                 <button class="ghost-btn" data-action="show-chart" data-name="${encodeName(entry.name)}">График</button>
-                                <button class="ghost-btn" data-action="delete-entry" data-id="${entry.id}" ${disabledAttr}>Удалить</button>
+                                <button class="ghost-btn" data-action="delete-entry" data-id="${entry.id}">Удалить</button>
                             </div>
                         </div>
                         ${setsHtml || "<div class=\"empty\">Подходов пока нет.</div>"}
                         <form class="set-form" data-entry-id="${entry.id}">
-                            <select class="input" name="weightSelect" required ${disabledAttr}>
+                            <select class="input" name="weightSelect" required>
                                 ${WEIGHT_OPTIONS}
                             </select>
-                            <select class="input" name="repsSelect" required ${disabledAttr}>
+                            <select class="input" name="repsSelect" required>
                                 ${REP_OPTIONS}
                             </select>
-                            <input class="input" name="restMin" type="number" min="0" placeholder="Отдых, мин" ${disabledAttr}>
-                            <button class="ghost-btn" type="button" data-action="plus-rest" data-entry-id="${entry.id}" ${disabledAttr}>+1 мин</button>
-                            <button class="ghost-btn" type="button" data-action="toggle-manual" data-entry-id="${entry.id}" ${disabledAttr}>Ручной ввод</button>
-                            <button class="ghost-btn" type="button" data-action="repeat-plus" data-entry-id="${entry.id}" ${entry.sets.length && !isFinished ? "" : "disabled"}>Повторить +1</button>
-                            <button class="btn" type="submit" ${disabledAttr}>Добавить подход</button>
+                            <input class="input" name="restMin" type="number" min="0" placeholder="Отдых, мин">
+                            <button class="ghost-btn" type="button" data-action="plus-rest" data-entry-id="${entry.id}">+1 мин</button>
+                            <button class="ghost-btn" type="button" data-action="toggle-manual" data-entry-id="${entry.id}">Ручной ввод</button>
+                            <button class="ghost-btn" type="button" data-action="repeat-plus" data-entry-id="${entry.id}" ${entry.sets.length ? "" : "disabled"}>Повторить +1</button>
+                            <button class="btn" type="submit">Добавить подход</button>
                             <div class="manual-row hidden">
-                                <input class="input" name="weightManual" type="number" min="0" step="0.5" placeholder="Вес вручную, кг" ${disabledAttr}>
-                                <input class="input" name="repsManual" type="number" min="1" placeholder="Повторы вручную" ${disabledAttr}>
+                                <input class="input" name="weightManual" type="number" min="0" step="0.5" placeholder="Вес вручную, кг">
+                                <input class="input" name="repsManual" type="number" min="1" placeholder="Повторы вручную">
                             </div>
                         </form>
                     </div>
@@ -1105,8 +1173,6 @@
                 state.selectedCatalogExercise[group] = catalog[0];
             }
             const selected = state.selectedCatalogExercise[group] || "";
-            const workout = state.data.workoutsByDate[state.selectedDateKey];
-            const isFinished = Boolean(workout && workout.finishedAt);
             catalogPanel.innerHTML = `
                 <div class="catalog-header">
                     <div class="catalog-title">Справочник упражнений</div>
@@ -1120,18 +1186,18 @@
                     <input class="input" type="text" placeholder="Новое упражнение" data-catalog-new>
                     <button class="btn" type="button" data-action="add-catalog">Добавить</button>
                 </div>
-                <div class="form-row">
-                    <select class="input catalog-select ${selected ? "selected" : ""}" data-catalog-select>
-                        ${catalog.length ? catalog.map(name => `
-                            <option value="${encodeName(name)}" ${name === selected ? "selected" : ""}>${escapeHtml(name)}</option>
-                        `).join("") : `<option value="">Нет упражнений</option>`}
-                    </select>
-                    <div class="select-actions">
-                        <button class="icon-action" type="button" data-action="rename-selected" data-group="${group}" aria-label="Переименовать" title="Переименовать" ${selected ? "" : "disabled"}>✏️</button>
-                        <button class="icon-action" type="button" data-action="delete-selected" data-group="${group}" aria-label="Удалить" title="Удалить" ${selected ? "" : "disabled"}>🗑</button>
-                        <button class="btn secondary" type="button" data-action="add-entry" data-group="${group}" ${isFinished ? "disabled" : ""}>Добавить в тренировку</button>
+                    <div class="form-row">
+                        <select class="input catalog-select ${selected ? "selected" : ""}" data-catalog-select>
+                            ${catalog.length ? catalog.map(name => `
+                                <option value="${encodeName(name)}" ${name === selected ? "selected" : ""}>${escapeHtml(name)}</option>
+                            `).join("") : `<option value="">Нет упражнений</option>`}
+                        </select>
+                        <div class="select-actions">
+                            <button class="icon-action" type="button" data-action="rename-selected" data-group="${group}" aria-label="Переименовать" title="Переименовать" ${selected ? "" : "disabled"}>✏️</button>
+                            <button class="icon-action" type="button" data-action="delete-selected" data-group="${group}" aria-label="Удалить" title="Удалить" ${selected ? "" : "disabled"}>🗑</button>
+                            <button class="btn secondary" type="button" data-action="add-entry" data-group="${group}">Добавить в тренировку</button>
+                        </div>
                     </div>
-                </div>
             `;
         }
 
@@ -1318,7 +1384,6 @@
 
         function addEntry(group, name) {
             const workout = ensureWorkout(state.selectedDateKey);
-            if (workout.finishedAt) return;
             if (!workout.durationStart) {
                 workout.durationStart = new Date().toISOString();
             }
@@ -1336,7 +1401,6 @@
 
         function deleteEntry(entryId) {
             const workout = ensureWorkout(state.selectedDateKey);
-            if (workout.finishedAt) return;
             workout.entries = workout.entries.filter(entry => entry.id !== entryId);
             workout.updatedAt = new Date().toISOString();
             saveData();
@@ -1347,7 +1411,6 @@
 
         function addSet(entryId, weight, reps, restMin) {
             const workout = ensureWorkout(state.selectedDateKey);
-            if (workout.finishedAt) return;
             const entry = workout.entries.find(item => item.id === entryId);
             if (!entry) return;
             const restSec = Math.max(0, restMin) * 60;
@@ -1379,7 +1442,6 @@
 
         function addRepeatPlus(entryId) {
             const workout = ensureWorkout(state.selectedDateKey);
-            if (workout.finishedAt) return;
             const entry = workout.entries.find(item => item.id === entryId);
             if (!entry || !entry.sets.length) return;
             const lastSet = entry.sets[entry.sets.length - 1];
@@ -1418,7 +1480,6 @@
 
         function deleteSet(entryId, setId) {
             const workout = ensureWorkout(state.selectedDateKey);
-            if (workout.finishedAt) return;
             const entry = workout.entries.find(item => item.id === entryId);
             if (!entry) return;
             entry.sets = entry.sets.filter(set => set.id !== setId);
@@ -1433,8 +1494,6 @@
         }
 
         function setEditingSet(entryId, setId) {
-            const workout = ensureWorkout(state.selectedDateKey);
-            if (workout.finishedAt) return;
             state.editingSet = { entryId, setId };
             renderWorkout();
         }
@@ -1453,7 +1512,6 @@
             const reps = parseInt(repsInput?.value, 10);
             if (!Number.isFinite(weight) || !Number.isFinite(reps)) return;
             const workout = ensureWorkout(state.selectedDateKey);
-            if (workout.finishedAt) return;
             const entry = workout.entries.find(item => item.id === entryId);
             if (!entry) return;
             const set = entry.sets.find(item => item.id === setId);
@@ -1504,12 +1562,17 @@
         }
 
         function updateAuthStatus(message) {
-            if (!authStatus) return;
-            if (!state.user) {
-                authStatus.textContent = message || "Синхронизация отключена";
-                return;
+            if (authStatus) {
+                authStatus.textContent = message || (state.user ? `Синхронизация включена: ${state.user.email}` : "Синхронизация отключена");
             }
-            authStatus.textContent = message || `Синхронизация включена: ${state.user.email}`;
+            if (syncStatus) {
+                const icon = state.user ? "✅" : "⚠️";
+                const text = message || (state.user ? "Синхронизация включена" : "Синхронизация отключена");
+                syncStatus.textContent = `${icon} ${text}`;
+            }
+            if (authPanel) {
+                authPanel.style.display = state.user ? "none" : "grid";
+            }
         }
 
         async function sendMagicLink() {
@@ -1955,6 +2018,7 @@
                 if (!data.catalogByGroup[group]) data.catalogByGroup[group] = [];
                 if (!data.catalogUpdatedAt[group]) data.catalogUpdatedAt[group] = null;
             });
+            applyDefaultCatalog(data);
             Object.values(data.workoutsByDate || {}).forEach(workout => {
                 if (workout.moodBefore === undefined) workout.moodBefore = 0;
                 if (workout.moodAfter === undefined) workout.moodAfter = 0;
@@ -1964,6 +2028,16 @@
                 if (workout.updatedAt === undefined) workout.updatedAt = workout.createdAt || new Date().toISOString();
             });
             return data;
+        }
+
+        function applyDefaultCatalog(data) {
+            const isEmpty = GROUPS.every(group => (data.catalogByGroup[group] || []).length === 0);
+            if (!isEmpty) return;
+            const now = new Date().toISOString();
+            GROUPS.forEach(group => {
+                data.catalogByGroup[group] = [...(DEFAULT_CATALOG[group] || [])];
+                data.catalogUpdatedAt[group] = now;
+            });
         }
 
         function saveData(skipSync) {
