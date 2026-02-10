@@ -404,11 +404,13 @@
         .icon-action {
             border: 1px solid #e2e8f0;
             background: transparent;
-            padding: 6px 8px;
+            padding: 10px 12px;
             border-radius: 10px;
             cursor: pointer;
             font-weight: 700;
             line-height: 1;
+            min-width: 44px;
+            min-height: 44px;
         }
 
         .icon-action:disabled {
@@ -451,6 +453,7 @@
             color: #fff;
             font-weight: 700;
             cursor: pointer;
+            min-height: 44px;
         }
 
         .btn.secondary {
@@ -460,11 +463,12 @@
         .ghost-btn {
             border: 1px solid #e2e8f0;
             background: transparent;
-            padding: 8px 10px;
+            padding: 12px 14px;
             border-radius: 10px;
             cursor: pointer;
             font-weight: 600;
             color: #0f172a;
+            min-height: 44px;
         }
 
         .ghost-btn:disabled {
@@ -540,6 +544,11 @@
             font-weight: 700;
             cursor: pointer;
             font-size: 12px;
+            min-width: 44px;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .set-row:last-child {
@@ -600,7 +609,7 @@
             padding: 16px 0;
         }
 
-        @media (max-width: 720px) {
+        @media (max-width: 430px) {
             body {
                 padding-bottom: 120px;
             }
@@ -613,6 +622,7 @@
                 margin-bottom: 0;
                 z-index: 5;
                 box-shadow: 0 16px 30px rgba(15, 23, 42, 0.3);
+                padding: 10px;
             }
 
             .form-row {
@@ -631,11 +641,45 @@
 
             .catalog-actions {
                 width: 100%;
+                gap: 10px;
+                justify-content: flex-start;
             }
 
             .auth-row {
                 flex-direction: column;
                 align-items: stretch;
+            }
+
+            .header {
+                align-items: flex-start;
+            }
+
+            .header-brand {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .sync-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .select-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .history-select {
+                width: 100%;
+            }
+
+            .set-row {
+                grid-template-columns: 1fr;
+            }
+
+            .set-main {
+                flex-direction: column;
+                align-items: flex-start;
             }
 
             .logo {
@@ -657,6 +701,8 @@
             </div>
             <div class="header-actions">
                 <button class="export-btn" type="button" data-action="export-data" aria-label="Выгрузить данные" title="Выгрузить данные">⤓</button>
+                <button class="ghost-btn" type="button" data-action="import-data">Импорт</button>
+                <input type="file" id="importFile" accept="application/json" hidden>
             </div>
         </header>
 
@@ -670,8 +716,8 @@
                 <input class="input" type="email" id="authEmail" placeholder="Email для входа">
                 <input class="input" type="password" id="authPassword" placeholder="Пароль">
                 <button class="btn" type="button" data-action="auth-signin">Войти</button>
-                <button class="ghost-btn" type="button" data-action="auth-signup">Создать аккаунт</button>
-                <button class="ghost-btn" type="button" data-action="auth-login">Войти по ссылке</button>
+                <button class="ghost-btn" type="button" data-action="auth-signup">Регистрация</button>
+                <button class="ghost-btn" type="button" data-action="auth-login">По ссылке</button>
                 <button class="ghost-btn" type="button" data-action="auth-logout">Выйти</button>
             </div>
             <div class="auth-status" id="authStatus">Синхронизация отключена</div>
@@ -702,7 +748,7 @@
                     <div class="duration">Длительность: <span id="durationValue">00:00:00</span></div>
                     <div class="tonnage">Тоннаж: <span id="tonnageValue">0</span> кг</div>
                     <div id="workoutStatus"></div>
-                    <button class="ghost-btn" type="button" data-action="finish-workout">Завершить тренировку</button>
+                    <button class="ghost-btn" type="button" data-action="finish-workout">Завершить</button>
                 </div>
                 <div class="tonnage-analogy" id="tonnageAnalogy"></div>
 
@@ -1103,6 +1149,7 @@
         const syncStatus = document.getElementById("syncStatus");
         const logoutButton = document.getElementById("logoutButton");
         const headerTitle = document.getElementById("headerTitle");
+        const importFile = document.getElementById("importFile");
 
         initSupabase();
         renderAll();
@@ -1144,6 +1191,7 @@
                 if (action === "auth-logout") signOut();
                 if (action === "auth-signin") signInWithPassword();
                 if (action === "auth-signup") signUpWithPassword();
+                if (action === "import-data") handleImportClick();
             });
 
             calendarGrid.addEventListener("click", (event) => {
@@ -1207,6 +1255,13 @@
                     state.historyDepth = depth;
                     localStorage.setItem(HISTORY_DEPTH_KEY, String(depth));
                 }
+            });
+
+            importFile.addEventListener("change", (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                importFromFile(file);
+                event.target.value = "";
             });
         }
 
@@ -1392,7 +1447,7 @@
                         </select>
                         <button class="icon-action" type="button" data-action="rename-selected" data-group="${group}" aria-label="Переименовать" title="Переименовать" ${selected ? "" : "disabled"}>✏️</button>
                         <button class="icon-action" type="button" data-action="delete-selected" data-group="${group}" aria-label="Удалить" title="Удалить" ${selected ? "" : "disabled"}>🗑</button>
-                        <button class="btn secondary" type="button" data-action="add-entry" data-group="${group}">Добавить в тренировку</button>
+                        <button class="btn secondary" type="button" data-action="add-entry" data-group="${group}">Добавить</button>
                     </div>
                 </div>
             `;
@@ -1729,6 +1784,67 @@
             link.click();
             link.remove();
             URL.revokeObjectURL(url);
+        }
+
+        function handleImportClick() {
+            const confirmed = confirm("Импорт перезапишет текущие данные. Продолжить?");
+            if (!confirmed) return;
+            const backup = confirm("Сделать резервную копию текущих данных перед импортом?");
+            if (backup) {
+                exportData();
+            }
+            importFile.click();
+        }
+
+        function importFromFile(file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const parsed = JSON.parse(reader.result);
+                    const payload = parsed?.data ? parsed.data : parsed;
+                    if (!isValidImport(payload)) {
+                        alert("Ошибка импорта: неверный формат файла.");
+                        return;
+                    }
+                    const normalized = normalizeImportedData(payload);
+                    state.data = normalized;
+                    saveData();
+                    renderAll();
+                    updateAuthStatus("Импорт выполнен");
+                } catch (error) {
+                    alert("Ошибка импорта: не удалось прочитать файл.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function isValidImport(payload) {
+            return payload && typeof payload === "object" && payload.workoutsByDate && payload.catalogByGroup;
+        }
+
+        function normalizeImportedData(payload) {
+            const data = { ...payload };
+            data.catalogByGroup = data.catalogByGroup || {};
+            data.catalogUpdatedAt = data.catalogUpdatedAt || {};
+            data.catalogResetVersion = CATALOG_RESET_VERSION;
+            GROUPS.forEach(group => {
+                data.catalogByGroup[group] = normalizeCatalog(data.catalogByGroup[group] || []);
+                if (!data.catalogUpdatedAt[group]) data.catalogUpdatedAt[group] = new Date().toISOString();
+            });
+            Object.values(data.workoutsByDate || {}).forEach(workout => {
+                if (workout.moodBefore === undefined) workout.moodBefore = 0;
+                if (workout.moodAfter === undefined) workout.moodAfter = 0;
+                if (workout.durationStart === undefined) workout.durationStart = null;
+                if (workout.durationSeconds === undefined) workout.durationSeconds = 0;
+                if (workout.finishedAt === undefined) workout.finishedAt = null;
+                if (workout.updatedAt === undefined) workout.updatedAt = workout.createdAt || new Date().toISOString();
+                workout.entries?.forEach(entry => {
+                    entry.sets?.forEach(set => {
+                        if (!set.source) set.source = "today";
+                    });
+                });
+            });
+            return data;
         }
 
         function initSupabase() {
