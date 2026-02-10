@@ -1294,9 +1294,13 @@
 
         function addCatalogExercise(group, name) {
             const catalog = state.data.catalogByGroup[group];
-            if (!catalog.includes(name)) {
-                catalog.push(name);
-                catalog.sort((a, b) => a.localeCompare(b, "ru"));
+            const normalized = normalizeExerciseName(name);
+            if (!normalized) return;
+            const normalizedCatalog = normalizeCatalog(catalog);
+            if (!normalizedCatalog.includes(normalized)) {
+                normalizedCatalog.push(normalized);
+                normalizedCatalog.sort((a, b) => a.localeCompare(b, "ru"));
+                state.data.catalogByGroup[group] = normalizedCatalog;
                 state.data.catalogUpdatedAt[group] = new Date().toISOString();
                 saveData();
                 renderWorkout();
@@ -1332,16 +1336,17 @@
         }
 
         function renameCatalog(group, oldName, newName) {
-            if (!newName) return;
-            const catalog = state.data.catalogByGroup[group];
-            const exists = catalog.find(item => item.toLowerCase() === newName.toLowerCase());
+            const normalized = normalizeExerciseName(newName);
+            if (!normalized) return;
+            const catalog = normalizeCatalog(state.data.catalogByGroup[group]);
+            const exists = catalog.find(item => item.toLowerCase() === normalized.toLowerCase());
             if (exists && exists !== oldName) return;
             const index = catalog.indexOf(oldName);
             if (index === -1) return;
-            catalog[index] = newName;
+            catalog[index] = normalized;
             catalog.sort((a, b) => a.localeCompare(b, "ru"));
             if (state.selectedCatalogExercise[group] === oldName) {
-                state.selectedCatalogExercise[group] = newName;
+                state.selectedCatalogExercise[group] = normalized;
             }
             state.data.catalogUpdatedAt[group] = new Date().toISOString();
 
@@ -1691,19 +1696,37 @@
             const merged = mergeWorkouts(state.data.workoutsByDate, remoteWorkouts);
             state.data.workoutsByDate = merged;
 
+            let needsCatalogSync = false;
+            const now = new Date().toISOString();
             GROUPS.forEach(group => {
                 const localUpdated = state.data.catalogUpdatedAt[group];
                 const remoteUpdated = state.remoteCache.catalogs[group];
-                if (!remoteUpdated && localUpdated) {
-                    return;
-                }
+                const remoteList = remoteCatalogs[group] || [];
+                const localList = state.data.catalogByGroup[group] || [];
+
+                let baseList = localList;
+                let baseUpdated = localUpdated;
                 if (remoteUpdated && (!localUpdated || new Date(remoteUpdated) > new Date(localUpdated))) {
-                    state.data.catalogByGroup[group] = remoteCatalogs[group] || [];
-                    state.data.catalogUpdatedAt[group] = remoteUpdated;
+                    baseList = remoteList;
+                    baseUpdated = remoteUpdated;
+                }
+
+                const mergedList = mergeCatalogWithDefault(group, baseList);
+                const changed = !arraysEqual(mergedList, localList);
+                state.data.catalogByGroup[group] = mergedList;
+
+                if (changed) {
+                    state.data.catalogUpdatedAt[group] = now;
+                    needsCatalogSync = true;
+                } else if (baseUpdated) {
+                    state.data.catalogUpdatedAt[group] = baseUpdated;
                 }
             });
 
             saveData(true);
+            if (needsCatalogSync) {
+                scheduleSync();
+            }
             renderAll();
             state.syncing = false;
             updateAuthStatus();
@@ -1784,6 +1807,47 @@
                 merged[dateKey] = remoteTime > localTime ? remoteWorkout : localWorkout;
             });
             return merged;
+        }
+
+        function mergeCatalogWithDefault(group, list) {
+            const merged = normalizeCatalog(list || []);
+            const defaults = DEFAULT_CATALOG[group] || [];
+            defaults.forEach(item => {
+                const normalized = normalizeExerciseName(item);
+                if (!merged.map(normalizeExerciseName).includes(normalized)) {
+                    merged.push(normalized);
+                }
+            });
+            return merged;
+        }
+
+        function arraysEqual(a, b) {
+            if (a === b) return true;
+            if (!a || !b) return false;
+            if (a.length !== b.length) return false;
+            for (let i = 0; i < a.length; i += 1) {
+                if (a[i] !== b[i]) return false;
+            }
+            return true;
+        }
+
+        function normalizeExerciseName(name) {
+            const raw = String(name || "").trim().replace(/\s+/g, " ");
+            if (!raw) return "";
+            return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+        }
+
+        function normalizeCatalog(list) {
+            const seen = new Set();
+            const result = [];
+            list.forEach(item => {
+                const normalized = normalizeExerciseName(item);
+                if (!normalized) return;
+                if (seen.has(normalized)) return;
+                seen.add(normalized);
+                result.push(normalized);
+            });
+            return result;
         }
 
         function buildWeightOptions() {
@@ -2038,6 +2102,9 @@
                 if (!data.catalogByGroup[group]) data.catalogByGroup[group] = [];
                 if (!data.catalogUpdatedAt[group]) data.catalogUpdatedAt[group] = null;
             });
+            GROUPS.forEach(group => {
+                data.catalogByGroup[group] = normalizeCatalog(data.catalogByGroup[group]);
+            });
             applyDefaultCatalog(data);
             Object.values(data.workoutsByDate || {}).forEach(workout => {
                 if (workout.moodBefore === undefined) workout.moodBefore = 0;
@@ -2055,7 +2122,7 @@
             if (!isEmpty) return;
             const now = new Date().toISOString();
             GROUPS.forEach(group => {
-                data.catalogByGroup[group] = [...(DEFAULT_CATALOG[group] || [])];
+                data.catalogByGroup[group] = normalizeCatalog(DEFAULT_CATALOG[group] || []);
                 data.catalogUpdatedAt[group] = now;
             });
         }
