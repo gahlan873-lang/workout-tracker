@@ -655,7 +655,10 @@
         <div class="auth-panel" id="authPanel">
             <div class="auth-row">
                 <input class="input" type="email" id="authEmail" placeholder="Email для входа">
-                <button class="btn" type="button" data-action="auth-login">Войти по ссылке</button>
+                <input class="input" type="password" id="authPassword" placeholder="Пароль">
+                <button class="btn" type="button" data-action="auth-signin">Войти</button>
+                <button class="ghost-btn" type="button" data-action="auth-signup">Создать аккаунт</button>
+                <button class="ghost-btn" type="button" data-action="auth-login">Войти по ссылке</button>
                 <button class="ghost-btn" type="button" data-action="auth-logout">Выйти</button>
             </div>
             <div class="auth-status" id="authStatus">Синхронизация отключена</div>
@@ -808,6 +811,7 @@
         const chartEmpty = document.getElementById("chartEmpty");
         const authPanel = document.getElementById("authPanel");
         const authEmail = document.getElementById("authEmail");
+        const authPassword = document.getElementById("authPassword");
         const authStatus = document.getElementById("authStatus");
 
         initSupabase();
@@ -851,6 +855,8 @@
                 if (action === "finish-workout") finishWorkout();
                 if (action === "auth-login") sendMagicLink();
                 if (action === "auth-logout") signOut();
+                if (action === "auth-signin") signInWithPassword();
+                if (action === "auth-signup") signUpWithPassword();
             });
 
             calendarGrid.addEventListener("click", (event) => {
@@ -1520,6 +1526,34 @@
                 return;
             }
             updateAuthStatus("Ссылка отправлена. Проверьте почту.");
+        }
+
+        async function signInWithPassword() {
+            if (!state.supabase) return;
+            const email = authEmail.value.trim();
+            const password = authPassword.value;
+            if (!email || !password) return;
+            updateAuthStatus("Вхожу...");
+            const { error } = await state.supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                updateAuthStatus("Ошибка входа");
+                return;
+            }
+            updateAuthStatus();
+        }
+
+        async function signUpWithPassword() {
+            if (!state.supabase) return;
+            const email = authEmail.value.trim();
+            const password = authPassword.value;
+            if (!email || !password) return;
+            updateAuthStatus("Создаю аккаунт...");
+            const { error } = await state.supabase.auth.signUp({ email, password });
+            if (error) {
+                updateAuthStatus("Ошибка регистрации");
+                return;
+            }
+            updateAuthStatus("Аккаунт создан. Войдите.");
         }
 
         async function signOut() {
