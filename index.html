@@ -422,6 +422,10 @@
             align-items: center;
         }
 
+        .history-select {
+            min-width: 140px;
+        }
+
         .form-row {
             display: grid;
             grid-template-columns: 1.2fr 1fr;
@@ -515,6 +519,27 @@
             padding: 8px 0;
             border-bottom: 1px dashed #e2e8f0;
             font-size: 14px;
+        }
+
+        .set-row.previous {
+            opacity: 0.7;
+        }
+
+        .set-main {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .done-btn {
+            border: 1px solid #e2e8f0;
+            background: #ecfeff;
+            color: #0f172a;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 12px;
         }
 
         .set-row:last-child {
@@ -720,6 +745,7 @@
     <script>
         const GROUPS = ["Грудь", "Спина", "Руки", "Ноги", "Плечи", "Пресс"];
         const STORAGE_KEY = "workoutDataV3";
+        const HISTORY_DEPTH_KEY = "historyDepth";
         const SUPABASE_URL = "https://dwgdefrmmykfzsvtcsjh.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_TAsCglmNK5MKehKbkS8gwg_b2uZK8ug";
 
@@ -1029,7 +1055,8 @@
             syncing: false,
             remoteCache: { workouts: {}, catalogs: {} },
             lastTonnage: null,
-            analogyText: ""
+            analogyText: "",
+            historyDepth: loadHistoryDepth()
         };
 
         const CHART_TYPES = [
@@ -1101,6 +1128,7 @@
                 if (action === "edit-set") setEditingSet(button.dataset.entryId, button.dataset.setId);
                 if (action === "cancel-edit") clearEditingSet();
                 if (action === "save-set") saveEditedSet(button.dataset.entryId, button.dataset.setId, button);
+                if (action === "mark-done") markSetDone(button.dataset.entryId, button.dataset.setId);
                 if (action === "delete-catalog") deleteCatalog(button.dataset.group, decodeName(button.dataset.name));
                 if (action === "rename-catalog") renameCatalogPrompt(button.dataset.group, decodeName(button.dataset.name));
                 if (action === "add-entry") addEntryFromCatalog(button.dataset.group);
@@ -1168,6 +1196,16 @@
                 const name = decodeName(select.value || "");
                 if (name) {
                     selectCatalogExercise(state.selectedCatalogGroup, name);
+                }
+            });
+
+            catalogPanel.addEventListener("change", (event) => {
+                const select = event.target.closest("[data-history-select]");
+                if (!select) return;
+                const depth = parseInt(select.value, 10);
+                if (depth === 1 || depth === 2) {
+                    state.historyDepth = depth;
+                    localStorage.setItem(HISTORY_DEPTH_KEY, String(depth));
                 }
             });
         }
@@ -1256,13 +1294,17 @@
             entriesList.innerHTML = workout.entries.map(entry => {
                 const setsHtml = entry.sets.map((set, index) => {
                     const isEditing = state.editingSet && state.editingSet.entryId === entry.id && state.editingSet.setId === set.id;
+                    const isPrevious = set.source === "previous";
                     return `
-                        <div class="set-row">
-                            <div>
-                                #${index + 1} · ${isEditing ? `
-                                    <input class=\"input\" type=\"number\" step=\"0.5\" min=\"0\" value=\"${set.weight}\" data-edit-weight>
-                                    <input class=\"input\" type=\"number\" min=\"1\" value=\"${set.reps}\" data-edit-reps>
-                                ` : `${set.weight} кг × ${set.reps} повторений`}
+                        <div class="set-row ${isPrevious ? "previous" : ""}">
+                            <div class="set-main">
+                                ${isPrevious ? `<button class=\"done-btn\" data-action=\"mark-done\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Выполнено\" title=\"Выполнено\">💪</button>` : ""}
+                                <div>
+                                    #${index + 1} · ${isEditing ? `
+                                        <input class=\"input\" type=\"number\" step=\"0.5\" min=\"0\" value=\"${set.weight}\" data-edit-weight>
+                                        <input class=\"input\" type=\"number\" min=\"1\" value=\"${set.reps}\" data-edit-reps>
+                                    ` : `${set.weight} кг × ${set.reps} повторений`}
+                                </div>
                             </div>
                             <div class="catalog-actions">
                                 ${isEditing ? `
@@ -1337,18 +1379,22 @@
                     <input class="input" type="text" placeholder="Новое упражнение" data-catalog-new>
                     <button class="btn" type="button" data-action="add-catalog">Добавить</button>
                 </div>
-                    <div class="form-row">
-                        <select class="input catalog-select ${selected ? "selected" : ""}" data-catalog-select>
-                            ${catalog.length ? catalog.map(name => `
-                                <option value="${encodeName(name)}" ${name === selected ? "selected" : ""}>${escapeHtml(name)}</option>
-                            `).join("") : `<option value="">Нет упражнений</option>`}
+                <div class="form-row">
+                    <select class="input catalog-select ${selected ? "selected" : ""}" data-catalog-select>
+                        ${catalog.length ? catalog.map(name => `
+                            <option value="${encodeName(name)}" ${name === selected ? "selected" : ""}>${escapeHtml(name)}</option>
+                        `).join("") : `<option value="">Нет упражнений</option>`}
+                    </select>
+                    <div class="select-actions">
+                        <select class="input history-select" data-history-select>
+                            <option value="1" ${state.historyDepth === 1 ? "selected" : ""}>Последняя</option>
+                            <option value="2" ${state.historyDepth === 2 ? "selected" : ""}>Предыдущая (-2)</option>
                         </select>
-                        <div class="select-actions">
-                            <button class="icon-action" type="button" data-action="rename-selected" data-group="${group}" aria-label="Переименовать" title="Переименовать" ${selected ? "" : "disabled"}>✏️</button>
-                            <button class="icon-action" type="button" data-action="delete-selected" data-group="${group}" aria-label="Удалить" title="Удалить" ${selected ? "" : "disabled"}>🗑</button>
-                            <button class="btn secondary" type="button" data-action="add-entry" data-group="${group}">Добавить в тренировку</button>
-                        </div>
+                        <button class="icon-action" type="button" data-action="rename-selected" data-group="${group}" aria-label="Переименовать" title="Переименовать" ${selected ? "" : "disabled"}>✏️</button>
+                        <button class="icon-action" type="button" data-action="delete-selected" data-group="${group}" aria-label="Удалить" title="Удалить" ${selected ? "" : "disabled"}>🗑</button>
+                        <button class="btn secondary" type="button" data-action="add-entry" data-group="${group}">Добавить в тренировку</button>
                     </div>
+                </div>
             `;
         }
 
@@ -1543,20 +1589,29 @@
             if (!workout.durationStart) {
                 workout.durationStart = new Date().toISOString();
             }
-            const initial = findPreviousFirstSet(name, state.selectedDateKey) || { weight: 0, reps: 0 };
+            const previousSets = findPreviousEntrySetsByDepth(name, state.selectedDateKey, state.historyDepth);
+            const sets = previousSets.length
+                ? previousSets.map(set => ({
+                    id: cryptoId(),
+                    weight: set.weight,
+                    reps: set.reps,
+                    restSec: 0,
+                    source: "previous",
+                    createdAt: new Date().toISOString()
+                }))
+                : [{
+                    id: cryptoId(),
+                    weight: 0,
+                    reps: 0,
+                    restSec: 0,
+                    source: "previous",
+                    createdAt: new Date().toISOString()
+                }];
             workout.entries.push({
                 id: cryptoId(),
                 group,
                 name,
-                sets: [
-                    {
-                        id: cryptoId(),
-                        weight: initial.weight,
-                        reps: initial.reps,
-                        restSec: 0,
-                        createdAt: new Date().toISOString()
-                    }
-                ]
+                sets
             });
             workout.updatedAt = new Date().toISOString();
             saveData();
@@ -1585,8 +1640,23 @@
                 weight: set.weight,
                 reps: set.reps,
                 restSec: 0,
+                source: "today",
                 createdAt: new Date().toISOString()
             });
+            workout.updatedAt = new Date().toISOString();
+            saveData();
+            renderWorkout();
+            renderCalendar();
+            renderCharts();
+        }
+
+        function markSetDone(entryId, setId) {
+            const workout = ensureWorkout(state.selectedDateKey);
+            const entry = workout.entries.find(item => item.id === entryId);
+            if (!entry) return;
+            const set = entry.sets.find(item => item.id === setId);
+            if (!set) return;
+            set.source = "today";
             workout.updatedAt = new Date().toISOString();
             saveData();
             renderWorkout();
@@ -1634,6 +1704,9 @@
             if (!set) return;
             set.weight = weight;
             set.reps = reps;
+            if (set.source === "previous") {
+                set.source = "today";
+            }
             workout.updatedAt = new Date().toISOString();
             state.editingSet = null;
             saveData();
@@ -1974,7 +2047,9 @@
             let total = 0;
             workout.entries.forEach(entry => {
                 entry.sets.forEach(set => {
-                    total += set.weight * set.reps;
+                    if (set.source === "today") {
+                        total += set.weight * set.reps;
+                    }
                 });
             });
             return total;
@@ -2109,10 +2184,11 @@
             return null;
         }
 
-        function findPreviousFirstSet(name, currentDateKey) {
+        function findPreviousEntrySetsByDepth(name, currentDateKey, depth) {
             const dates = Object.keys(state.data.workoutsByDate).sort();
             const currentIndex = dates.indexOf(currentDateKey);
             const endIndex = currentIndex === -1 ? dates.length : currentIndex;
+            let matches = 0;
             for (let i = endIndex - 1; i >= 0; i -= 1) {
                 const dateKey = dates[i];
                 const workout = state.data.workoutsByDate[dateKey];
@@ -2120,10 +2196,14 @@
                 for (let j = 0; j < workout.entries.length; j += 1) {
                     const entry = workout.entries[j];
                     if (entry.name !== name || !entry.sets.length) continue;
-                    return entry.sets[0];
+                    matches += 1;
+                    if (matches === depth) {
+                        return entry.sets;
+                    }
+                    break;
                 }
             }
-            return null;
+            return [];
         }
 
         function destroyChart() {
@@ -2160,8 +2240,19 @@
                 if (workout.durationSeconds === undefined) workout.durationSeconds = 0;
                 if (workout.finishedAt === undefined) workout.finishedAt = null;
                 if (workout.updatedAt === undefined) workout.updatedAt = workout.createdAt || new Date().toISOString();
+                workout.entries?.forEach(entry => {
+                    entry.sets?.forEach(set => {
+                        if (!set.source) set.source = "today";
+                    });
+                });
             });
             return data;
+        }
+
+        function loadHistoryDepth() {
+            const raw = localStorage.getItem(HISTORY_DEPTH_KEY);
+            const depth = parseInt(raw, 10);
+            return depth === 2 ? 2 : 1;
         }
 
         function applyDefaultCatalog(data) {
