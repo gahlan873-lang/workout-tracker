@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Тренировочный дневник</title>
     <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="icon" sizes="192x192" href="icon-192.png">
+    <link rel="icon" sizes="512x512" href="icon-512.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
@@ -525,6 +528,18 @@
             font-size: 14px;
         }
 
+        .sets-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px 16px;
+        }
+
+        .set-row.selected {
+            background: rgba(14, 165, 233, 0.12);
+            border-radius: 10px;
+            padding: 8px;
+        }
+
         .set-row.previous {
             opacity: 0.7;
         }
@@ -533,6 +548,54 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .set-text {
+            cursor: pointer;
+        }
+
+        .entry-menu {
+            position: relative;
+        }
+
+        .menu-btn {
+            border: 1px solid #e2e8f0;
+            background: transparent;
+            border-radius: 10px;
+            padding: 8px 10px;
+            cursor: pointer;
+            min-height: 44px;
+            min-width: 44px;
+            font-weight: 700;
+        }
+
+        .menu-popover {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+            padding: 8px;
+            min-width: 180px;
+            z-index: 5;
+        }
+
+        .menu-item {
+            width: 100%;
+            text-align: left;
+            border: 0;
+            background: transparent;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .menu-item:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .done-btn {
@@ -674,6 +737,10 @@
             }
 
             .set-row {
+                grid-template-columns: 1fr;
+            }
+
+            .sets-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -1102,7 +1169,11 @@
             remoteCache: { workouts: {}, catalogs: {} },
             lastTonnage: null,
             analogyText: "",
-            historyDepth: loadHistoryDepth()
+            historyDepth: loadHistoryDepth(),
+            selectedSetByEntry: {},
+            openMenuEntryId: null,
+            openCatalogMenu: false,
+            catalogInlineMode: null
         };
 
         const CHART_TYPES = [
@@ -1176,22 +1247,45 @@
                 if (action === "cancel-edit") clearEditingSet();
                 if (action === "save-set") saveEditedSet(button.dataset.entryId, button.dataset.setId, button);
                 if (action === "mark-done") markSetDone(button.dataset.entryId, button.dataset.setId);
-                if (action === "delete-catalog") deleteCatalog(button.dataset.group, decodeName(button.dataset.name));
-                if (action === "rename-catalog") renameCatalogPrompt(button.dataset.group, decodeName(button.dataset.name));
+                if (action === "toggle-menu") toggleEntryMenu(button.dataset.entryId);
+                if (action === "copy-selected-set") copySelectedSet(button.dataset.entryId);
+                if (action === "delete-selected-set") deleteSelectedSet(button.dataset.entryId);
                 if (action === "add-entry") addEntryFromCatalog(button.dataset.group);
                 if (action === "copy-set") copySet(button.dataset.entryId, button.dataset.setId);
                 if (action === "export-data") exportData();
                 if (action === "select-group") selectCatalogGroup(button.dataset.group);
                 if (action === "show-chart") showChartForExercise(decodeName(button.dataset.name));
-                if (action === "add-catalog") addCatalogFromPanel();
-                if (action === "rename-selected") renameSelectedExercise(button.dataset.group);
-                if (action === "delete-selected") deleteSelectedExercise(button.dataset.group);
+                if (action === "toggle-catalog-menu") toggleCatalogMenu();
+                if (action === "catalog-add-start") startCatalogInline("add");
+                if (action === "catalog-rename-start") startCatalogInline("rename");
+                if (action === "catalog-delete") deleteSelectedExercise(state.selectedCatalogGroup);
+                if (action === "catalog-inline-save") saveCatalogInline();
+                if (action === "catalog-inline-cancel") cancelCatalogInline();
                 if (action === "finish-workout") finishWorkout();
                 if (action === "auth-login") sendMagicLink();
                 if (action === "auth-logout") signOut();
                 if (action === "auth-signin") signInWithPassword();
                 if (action === "auth-signup") signUpWithPassword();
                 if (action === "import-data") handleImportClick();
+            });
+
+            entriesList.addEventListener("click", (event) => {
+                if (event.target.closest("[data-action]")) return;
+                const setRow = event.target.closest("[data-set-row]");
+                if (!setRow) return;
+                const entryId = setRow.dataset.entryId;
+                const setId = setRow.dataset.setId;
+                state.selectedSetByEntry[entryId] = setId;
+                renderWorkout();
+            });
+
+            document.addEventListener("click", (event) => {
+                if (!state.openCatalogMenu) return;
+                const insideMenu = event.target.closest(".entry-menu");
+                if (!insideMenu) {
+                    state.openCatalogMenu = false;
+                    renderCatalogPanel();
+                }
             });
 
             calendarGrid.addEventListener("click", (event) => {
@@ -1347,33 +1441,30 @@
             }
 
             entriesList.innerHTML = workout.entries.map(entry => {
-                const setsHtml = entry.sets.map((set, index) => {
-                    const isEditing = state.editingSet && state.editingSet.entryId === entry.id && state.editingSet.setId === set.id;
-                    const isPrevious = set.source === "previous";
-                    return `
-                        <div class="set-row ${isPrevious ? "previous" : ""}">
-                            <div class="set-main">
-                                ${isPrevious ? `<button class=\"done-btn\" data-action=\"mark-done\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Выполнено\" title=\"Выполнено\">💪</button>` : ""}
-                                <div>
-                                    #${index + 1} · ${isEditing ? `
-                                        <input class=\"input\" type=\"number\" step=\"0.5\" min=\"0\" value=\"${set.weight}\" data-edit-weight>
-                                        <input class=\"input\" type=\"number\" min=\"1\" value=\"${set.reps}\" data-edit-reps>
-                                    ` : `${set.weight} кг × ${set.reps} повторений`}
-                                </div>
-                            </div>
-                            <div class="catalog-actions">
-                                ${isEditing ? `
-                                    <button class=\"icon-action\" data-action=\"save-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Сохранить\" title=\"Сохранить\">✔</button>
-                                    <button class=\"icon-action\" data-action=\"cancel-edit\" aria-label=\"Отмена\" title=\"Отмена\">✖</button>
-                                ` : `
-                                    <button class=\"icon-action\" data-action=\"edit-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Редактировать\" title=\"Редактировать\">✏️</button>
-                                    <button class=\"icon-action\" data-action=\"copy-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Копировать\" title=\"Копировать\">📋</button>
-                                    <button class=\"icon-action\" data-action=\"delete-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Удалить\" title=\"Удалить\">🗑</button>
-                                `}
+            const setsHtml = entry.sets.map((set, index) => {
+                const isEditing = state.editingSet && state.editingSet.entryId === entry.id && state.editingSet.setId === set.id;
+                const isPrevious = set.source === "previous";
+                const isSelected = state.selectedSetByEntry[entry.id] === set.id;
+                return `
+                    <div class="set-row ${isPrevious ? "previous" : ""} ${isSelected ? "selected" : ""}" data-set-row data-entry-id="${entry.id}" data-set-id="${set.id}">
+                        <div class="set-main">
+                            ${isPrevious ? `<button class=\"done-btn\" data-action=\"mark-done\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Выполнено\" title=\"Выполнено\">💪</button>` : ""}
+                            <div class="set-text" data-action="edit-set" data-entry-id="${entry.id}" data-set-id="${set.id}">
+                                #${index + 1} · ${isEditing ? `
+                                    <input class=\"input\" type=\"number\" step=\"0.5\" min=\"0\" value=\"${set.weight}\" data-edit-weight>
+                                    <input class=\"input\" type=\"number\" min=\"1\" value=\"${set.reps}\" data-edit-reps>
+                                ` : `${set.weight} кг × ${set.reps} повторений`}
                             </div>
                         </div>
-                    `;
-                }).join("");
+                        ${isEditing ? `
+                            <div class=\"catalog-actions\">
+                                <button class=\"icon-action\" data-action=\"save-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Сохранить\" title=\"Сохранить\">✔</button>
+                                <button class=\"icon-action\" data-action=\"cancel-edit\" aria-label=\"Отмена\" title=\"Отмена\">✖</button>
+                            </div>
+                        ` : ""}
+                    </div>
+                `;
+            }).join("");
 
                 return `
                     <div class="entry-card">
@@ -1385,9 +1476,20 @@
                             <div class="catalog-actions">
                                 <button class="ghost-btn" data-action="show-chart" data-name="${encodeName(entry.name)}">График</button>
                                 <button class="ghost-btn" data-action="delete-entry" data-id="${entry.id}">Удалить</button>
+                                <div class="entry-menu">
+                                    <button class="menu-btn" data-action="toggle-menu" data-entry-id="${entry.id}">⋯</button>
+                                    ${state.openMenuEntryId === entry.id ? `
+                                        <div class=\"menu-popover\">
+                                            <button class=\"menu-item\" data-action=\"copy-selected-set\" data-entry-id=\"${entry.id}\" ${state.selectedSetByEntry[entry.id] ? "" : "disabled"}>Копировать подход</button>
+                                            <button class=\"menu-item\" data-action=\"delete-selected-set\" data-entry-id=\"${entry.id}\" ${state.selectedSetByEntry[entry.id] ? "" : "disabled"}>Удалить подход</button>
+                                        </div>
+                                    ` : ""}
+                                </div>
                             </div>
                         </div>
-                        ${setsHtml || "<div class=\"empty\">Подходов пока нет.</div>"}
+                        <div class="sets-grid">
+                            ${setsHtml || "<div class=\"empty\">Подходов пока нет.</div>"}
+                        </div>
                     </div>
                 `;
             }).join("");
@@ -1430,10 +1532,6 @@
                         `).join("")}
                     </div>
                 </div>
-                <div class="catalog-controls">
-                    <input class="input" type="text" placeholder="Новое упражнение" data-catalog-new>
-                    <button class="btn" type="button" data-action="add-catalog">Добавить</button>
-                </div>
                 <div class="form-row">
                     <select class="input catalog-select ${selected ? "selected" : ""}" data-catalog-select>
                         ${catalog.length ? catalog.map(name => `
@@ -1445,11 +1543,28 @@
                             <option value="1" ${state.historyDepth === 1 ? "selected" : ""}>Последняя</option>
                             <option value="2" ${state.historyDepth === 2 ? "selected" : ""}>Предыдущая (-2)</option>
                         </select>
-                        <button class="icon-action" type="button" data-action="rename-selected" data-group="${group}" aria-label="Переименовать" title="Переименовать" ${selected ? "" : "disabled"}>✏️</button>
-                        <button class="icon-action" type="button" data-action="delete-selected" data-group="${group}" aria-label="Удалить" title="Удалить" ${selected ? "" : "disabled"}>🗑</button>
                         <button class="btn secondary" type="button" data-action="add-entry" data-group="${group}">Добавить</button>
+                        <div class="entry-menu">
+                            <button class="menu-btn" data-action="toggle-catalog-menu">⋯</button>
+                            ${state.openCatalogMenu ? `
+                                <div class=\"menu-popover\">
+                                    <button class=\"menu-item\" data-action=\"catalog-add-start\">Добавить упражнение</button>
+                                    <button class=\"menu-item\" data-action=\"catalog-rename-start\" ${selected ? "" : "disabled"}>Переименовать</button>
+                                    <button class=\"menu-item\" data-action=\"catalog-delete\" ${selected ? "" : "disabled"}>Удалить</button>
+                                </div>
+                            ` : ""}
+                        </div>
                     </div>
                 </div>
+                ${state.catalogInlineMode ? `
+                    <div class=\"form-row\">
+                        <input class=\"input\" type=\"text\" id=\"catalogInlineInput\" placeholder=\"${state.catalogInlineMode === "add" ? "Новое упражнение" : "Новое название"}\" value=\"${state.catalogInlineMode === "rename" ? escapeHtml(selected) : ""}\">
+                        <div class=\"select-actions\">
+                            <button class=\"btn secondary\" type=\"button\" data-action=\"catalog-inline-save\">Сохранить</button>
+                            <button class=\"ghost-btn\" type=\"button\" data-action=\"catalog-inline-cancel\">Отмена</button>
+                        </div>
+                    </div>
+                ` : ""}
             `;
         }
 
@@ -1612,11 +1727,50 @@
                 const first = (state.data.catalogByGroup[group] || [])[0] || "";
                 state.selectedCatalogExercise[group] = first;
             }
+            state.openCatalogMenu = false;
+            state.catalogInlineMode = null;
             renderCatalogPanel();
         }
 
         function selectCatalogExercise(group, name) {
             state.selectedCatalogExercise[group] = name;
+            renderCatalogPanel();
+        }
+
+        function toggleCatalogMenu() {
+            state.openCatalogMenu = !state.openCatalogMenu;
+            renderCatalogPanel();
+        }
+
+        function startCatalogInline(mode) {
+            state.catalogInlineMode = mode;
+            state.openCatalogMenu = false;
+            renderCatalogPanel();
+            const input = document.getElementById("catalogInlineInput");
+            if (input) input.focus();
+        }
+
+        function saveCatalogInline() {
+            const input = document.getElementById("catalogInlineInput");
+            if (!input) return;
+            const value = input.value.trim();
+            if (!value) return;
+            if (state.catalogInlineMode === "add") {
+                addCatalogExercise(state.selectedCatalogGroup, value);
+                state.selectedCatalogExercise[state.selectedCatalogGroup] = value;
+            }
+            if (state.catalogInlineMode === "rename") {
+                const selected = state.selectedCatalogExercise[state.selectedCatalogGroup];
+                if (selected) {
+                    renameCatalog(state.selectedCatalogGroup, selected, value);
+                }
+            }
+            state.catalogInlineMode = null;
+            renderCatalogPanel();
+        }
+
+        function cancelCatalogInline() {
+            state.catalogInlineMode = null;
             renderCatalogPanel();
         }
 
@@ -1705,6 +1859,25 @@
             renderCharts();
         }
 
+        function copySelectedSet(entryId) {
+            const setId = state.selectedSetByEntry[entryId];
+            if (!setId) return;
+            copySet(entryId, setId);
+            state.openMenuEntryId = null;
+        }
+
+        function deleteSelectedSet(entryId) {
+            const setId = state.selectedSetByEntry[entryId];
+            if (!setId) return;
+            deleteSet(entryId, setId);
+            state.openMenuEntryId = null;
+        }
+
+        function toggleEntryMenu(entryId) {
+            state.openMenuEntryId = state.openMenuEntryId === entryId ? null : entryId;
+            renderWorkout();
+        }
+
         function markSetDone(entryId, setId) {
             const workout = ensureWorkout(state.selectedDateKey);
             const entry = workout.entries.find(item => item.id === entryId);
@@ -1736,6 +1909,7 @@
 
         function setEditingSet(entryId, setId) {
             state.editingSet = { entryId, setId };
+            state.selectedSetByEntry[entryId] = setId;
             renderWorkout();
         }
 
