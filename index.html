@@ -600,6 +600,21 @@
             text-align: center;
         }
 
+        .set-select.weight-select {
+            height: auto;
+        }
+
+        .set-select.weight-select option.opt-int {
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .set-select.weight-select option.opt-float {
+            font-weight: 400;
+            font-size: 0.85em;
+            color: #64748b;
+        }
+
         .entry-menu {
             position: relative;
         }
@@ -1541,7 +1556,7 @@
                             ${isPrevious ? `<button class=\"done-btn\" data-action=\"mark-done\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Выполнено\" title=\"Выполнено\">💪</button>` : ""}
                             <div class="set-text ${isEditing ? "editing" : ""}" data-action="edit-set" data-entry-id="${entry.id}" data-set-id="${set.id}">
                                 #${index + 1} · ${isEditing ? `
-                                    <select class=\"set-select\" data-edit-weight>
+                                    <select class=\"set-select weight-select\" data-edit-weight size=\"11\">
                                         ${buildWeightOptions(set.weight)}
                                     </select>
                                     <select class=\"set-select\" data-edit-reps>
@@ -1594,9 +1609,11 @@
             const options = [];
             for (let i = 0; i <= 400; i += 1) {
                 const value = i / 2;
-                const label = Number.isInteger(value) ? `${value}` : value.toFixed(1);
+                const isInteger = Number.isInteger(value);
+                const label = isInteger ? `${value}` : value.toFixed(1);
                 const isSelected = Math.abs(value - selectedWeight) < 0.001;
-                options.push(`<option value="${label}" ${isSelected ? "selected" : ""}>${label}</option>`);
+                const optionClass = isInteger ? "opt-int" : "opt-float";
+                options.push(`<option value="${label}" class="${optionClass}" ${isSelected ? "selected" : ""}>${label}</option>`);
             }
             return options.join("");
         }
