@@ -584,8 +584,16 @@
         .set-text.editing {
             cursor: default;
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .set-edit-controls {
+            display: grid;
+            grid-auto-flow: column;
             gap: 6px;
+            justify-content: end;
             align-items: center;
         }
 
@@ -1556,12 +1564,14 @@
                             ${isPrevious ? `<button class=\"done-btn\" data-action=\"mark-done\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Выполнено\" title=\"Выполнено\">💪</button>` : ""}
                             <div class="set-text ${isEditing ? "editing" : ""}" data-action="edit-set" data-entry-id="${entry.id}" data-set-id="${set.id}">
                                 #${index + 1} · ${isEditing ? `
-                                    <select class=\"set-select weight-select\" data-edit-weight size=\"11\">
-                                        ${buildWeightOptions(set.weight)}
-                                    </select>
-                                    <select class=\"set-select\" data-edit-reps>
-                                        ${buildRepsOptions(set.reps)}
-                                    </select>
+                                    <div class=\"set-edit-controls\">
+                                        <select class=\"set-select weight-select\" data-edit-weight size=\"11\">
+                                            ${buildWeightOptions(set.weight)}
+                                        </select>
+                                        <select class=\"set-select\" data-edit-reps>
+                                            ${buildRepsOptions(set.reps)}
+                                        </select>
+                                    </div>
                                 ` : `${set.weight} кг × ${set.reps}`}
                             </div>
                         </div>
