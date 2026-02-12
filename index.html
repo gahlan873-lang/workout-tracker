@@ -612,6 +612,17 @@
             height: auto;
         }
 
+        .set-select.weight-select.is-int {
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .set-select.weight-select.is-float {
+            font-weight: 400;
+            font-size: 0.9em;
+            color: #64748b;
+        }
+
         .set-select.weight-select option.opt-int {
             font-weight: 700;
             color: var(--accent);
@@ -835,6 +846,17 @@
 
             .set-text {
                 text-align: center;
+            }
+
+            .set-text.editing {
+                grid-template-columns: 1fr auto;
+            }
+
+            .set-edit-controls {
+                grid-auto-flow: row;
+                gap: 6px;
+                justify-items: end;
+                align-items: end;
             }
 
             .set-row.previous {
@@ -1565,7 +1587,7 @@
                             <div class="set-text ${isEditing ? "editing" : ""}" data-action="edit-set" data-entry-id="${entry.id}" data-set-id="${set.id}">
                                 #${index + 1} · ${isEditing ? `
                                     <div class=\"set-edit-controls\">
-                                        <select class=\"set-select weight-select\" data-edit-weight size=\"11\">
+                                        <select class=\"set-select weight-select ${Number.isInteger(set.weight) ? "is-int" : "is-float"}\" data-edit-weight size=\"11\">
                                             ${buildWeightOptions(set.weight)}
                                         </select>
                                         <select class=\"set-select\" data-edit-reps>
