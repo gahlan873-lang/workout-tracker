@@ -492,6 +492,33 @@
             margin-bottom: 14px;
         }
 
+        .entry-card.compact {
+            padding: 12px;
+        }
+
+        .entry-card.compact .entry-header {
+            margin-bottom: 6px;
+        }
+
+        .entry-card.compact .entry-title {
+            cursor: pointer;
+        }
+
+        .entry-card.compact .sets-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px 8px;
+        }
+
+        .entry-card.compact .set-row {
+            padding: 4px;
+            border-bottom: 0;
+            font-size: 13px;
+        }
+
+        .entry-card.compact .done-btn {
+            display: none;
+        }
+
         .entry-header {
             display: flex;
             align-items: center;
@@ -552,6 +579,25 @@
 
         .set-text {
             cursor: pointer;
+        }
+
+        .set-text.editing {
+            cursor: default;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .set-select {
+            width: 100%;
+            min-height: 38px;
+            padding: 6px 8px;
+            border-radius: 10px;
+            border: 1px solid #cbd5f5;
+            background: #fff;
+            font-size: 14px;
+            text-align: center;
         }
 
         .entry-menu {
@@ -1271,7 +1317,10 @@
                 if (action === "refresh-charts") renderCharts();
                 if (action === "delete-entry") deleteEntry(button.dataset.id);
                 if (action === "delete-set") deleteSet(button.dataset.entryId, button.dataset.setId);
-                if (action === "edit-set") setEditingSet(button.dataset.entryId, button.dataset.setId);
+                if (action === "edit-set") {
+                    if (state.editingSet && state.editingSet.entryId === button.dataset.entryId && state.editingSet.setId === button.dataset.setId) return;
+                    setEditingSet(button.dataset.entryId, button.dataset.setId);
+                }
                 if (action === "cancel-edit") clearEditingSet();
                 if (action === "save-set") saveEditedSet(button.dataset.entryId, button.dataset.setId, button);
                 if (action === "mark-done") markSetDone(button.dataset.entryId, button.dataset.setId);
@@ -1279,6 +1328,7 @@
                 if (action === "copy-selected-set") copySelectedSet(button.dataset.entryId);
                 if (action === "delete-selected-set") deleteSelectedSet(button.dataset.entryId);
                 if (action === "add-entry") addEntryFromCatalog(button.dataset.group);
+                if (action === "toggle-compact") toggleCompactEntry(button.dataset.entryId);
                 if (action === "copy-set") copySet(button.dataset.entryId, button.dataset.setId);
                 if (action === "export-data") exportData();
                 if (action === "select-group") selectCatalogGroup(button.dataset.group);
@@ -1298,7 +1348,7 @@
             });
 
             entriesList.addEventListener("click", (event) => {
-                if (event.target.closest("input")) {
+                if (event.target.closest("input") || event.target.closest("select")) {
                     event.stopPropagation();
                     return;
                 }
@@ -1309,6 +1359,14 @@
                 const setId = setRow.dataset.setId;
                 state.selectedSetByEntry[entryId] = setId;
                 renderWorkout();
+            });
+
+            entriesList.addEventListener("change", (event) => {
+                const select = event.target.closest("select[data-edit-weight], select[data-edit-reps]");
+                if (!select) return;
+                const row = select.closest(".set-row");
+                if (!row) return;
+                saveEditedSet(row.dataset.entryId, row.dataset.setId, select);
             });
 
             document.addEventListener("click", (event) => {
@@ -1481,28 +1539,26 @@
                     <div class="set-row ${isPrevious ? "previous" : ""} ${isSelected ? "selected" : ""}" data-set-row data-entry-id="${entry.id}" data-set-id="${set.id}">
                         <div class="set-main">
                             ${isPrevious ? `<button class=\"done-btn\" data-action=\"mark-done\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Выполнено\" title=\"Выполнено\">💪</button>` : ""}
-                            <div class="set-text" data-action="edit-set" data-entry-id="${entry.id}" data-set-id="${set.id}">
+                            <div class="set-text ${isEditing ? "editing" : ""}" data-action="edit-set" data-entry-id="${entry.id}" data-set-id="${set.id}">
                                 #${index + 1} · ${isEditing ? `
-                                    <input class=\"input\" type=\"number\" step=\"0.5\" min=\"0\" value=\"${set.weight}\" data-edit-weight>
-                                    <input class=\"input\" type=\"number\" min=\"1\" value=\"${set.reps}\" data-edit-reps>
+                                    <select class=\"set-select\" data-edit-weight>
+                                        ${buildWeightOptions(set.weight)}
+                                    </select>
+                                    <select class=\"set-select\" data-edit-reps>
+                                        ${buildRepsOptions(set.reps)}
+                                    </select>
                                 ` : `${set.weight} кг × ${set.reps}`}
                             </div>
                         </div>
-                        ${isEditing ? `
-                            <div class=\"catalog-actions\">
-                                <button class=\"icon-action\" data-action=\"save-set\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Сохранить\" title=\"Сохранить\">✔</button>
-                                <button class=\"icon-action\" data-action=\"cancel-edit\" aria-label=\"Отмена\" title=\"Отмена\">✖</button>
-                            </div>
-                        ` : ""}
                     </div>
                 `;
             }).join("");
 
                 return `
-                    <div class="entry-card">
+                    <div class="entry-card ${entry.compact ? "compact" : ""}">
                         <div class="entry-header">
                             <div>
-                                <div class="entry-title">${escapeHtml(entry.name)}<span class="entry-group">${escapeHtml(entry.group)}</span></div>
+                                <div class="entry-title" data-action="toggle-compact" data-entry-id="${entry.id}">${escapeHtml(entry.name)}<span class="entry-group">${escapeHtml(entry.group)}</span></div>
                                 <div class="entry-prev">
                                     <button class="menu-btn" data-action="toggle-menu" data-entry-id="${entry.id}">⋯</button>
                                 </div>
@@ -1532,6 +1588,25 @@
             return [1, 2, 3, 4, 5].map(value => `
                 <span class="star ${value <= current ? "active" : ""}" data-mood="${value}" data-type="${type}">★</span>
             `).join("");
+        }
+
+        function buildWeightOptions(selectedWeight) {
+            const options = [];
+            for (let i = 0; i <= 400; i += 1) {
+                const value = i / 2;
+                const label = Number.isInteger(value) ? `${value}` : value.toFixed(1);
+                const isSelected = Math.abs(value - selectedWeight) < 0.001;
+                options.push(`<option value="${label}" ${isSelected ? "selected" : ""}>${label}</option>`);
+            }
+            return options.join("");
+        }
+
+        function buildRepsOptions(selectedReps) {
+            const options = [];
+            for (let value = 1; value <= 30; value += 1) {
+                options.push(`<option value="${value}" ${value === selectedReps ? "selected" : ""}>${value}</option>`);
+            }
+            return options.join("");
         }
 
         function renderPreviousSet() {
@@ -1829,6 +1904,10 @@
             if (!workout.durationStart) {
                 workout.durationStart = new Date().toISOString();
             }
+            const lastEntry = workout.entries[workout.entries.length - 1];
+            if (lastEntry) {
+                lastEntry.compact = true;
+            }
             const previousSets = findPreviousEntrySetsByDepth(name, state.selectedDateKey, state.historyDepth);
             const sets = previousSets.length
                 ? previousSets.map(set => ({
@@ -1851,12 +1930,23 @@
                 id: cryptoId(),
                 group,
                 name,
-                sets
+                sets,
+                compact: false
             });
             workout.updatedAt = new Date().toISOString();
             saveData();
             renderWorkout();
             renderCalendar();
+        }
+
+        function toggleCompactEntry(entryId) {
+            const workout = ensureWorkout(state.selectedDateKey);
+            const entry = workout.entries.find(item => item.id === entryId);
+            if (!entry || !entry.compact) return;
+            entry.compact = false;
+            workout.updatedAt = new Date().toISOString();
+            saveData();
+            renderWorkout();
         }
 
         function deleteEntry(entryId) {
