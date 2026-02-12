@@ -581,6 +581,11 @@
             cursor: pointer;
         }
 
+        .set-index {
+            font-weight: 700;
+            margin-right: 6px;
+        }
+
         .set-text.editing {
             cursor: default;
             display: grid;
@@ -1585,7 +1590,7 @@
                         <div class="set-main">
                             ${isPrevious ? `<button class=\"done-btn\" data-action=\"mark-done\" data-entry-id=\"${entry.id}\" data-set-id=\"${set.id}\" aria-label=\"Выполнено\" title=\"Выполнено\">💪</button>` : ""}
                             <div class="set-text ${isEditing ? "editing" : ""}" data-action="edit-set" data-entry-id="${entry.id}" data-set-id="${set.id}">
-                                #${index + 1} · ${isEditing ? `
+                                <span class="set-index">#${index + 1}</span>${isEditing ? `
                                     <div class=\"set-edit-controls\">
                                         <select class=\"set-select weight-select ${Number.isInteger(set.weight) ? "is-int" : "is-float"}\" data-edit-weight size=\"11\">
                                             ${buildWeightOptions(set.weight)}
